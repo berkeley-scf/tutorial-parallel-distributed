@@ -209,13 +209,13 @@ hr {
 
 <h1>0) This Tutorial</h1>
 
-<p>This tutorial covers strategies for using parallel processing in R, Python, Matlab, and C on multiple machines, in which the various processes must interact across a network linking the machines. </p>
+<p>This tutorial covers strategies for using parallel processing in R, Python, Matlab (briefly), and C on multiple machines, in which the various processes must interact across a network linking the machines. </p>
 
 <p>In the future, a screencast of the material may accompany this document.</p>
 
 <p>We&#39;ll use a virtual machine developed here at Berkeley, <a href="http://bce.berkeley.edu">the Berkeley Common Environment (BCE)</a>. BCE is a virtual Linux machine - basically it is a Linux computer that you can run within your own computer, regardless of whether you are using Windows, Mac, or Linux. This provides a common environment so that things behave the same for all of us. At the moment, I advise using the BCE-2015-spring VM and starting up a virtual cluster using <em>StarCluster</em>, following the instructions at the <a href="http://bce.berkeley.edu/install.html">BCE install page</a>. Starting up BCE-based clusters using BCE-2015-fall is in flux at the moment; we hope to firm this up during fall semester, 2015.</p>
 
-<p>This tutorial assumes you have a working knowledge of either R, Python, Matlab, or C. </p>
+<p>This tutorial assumes you have a working knowledge of either R, Python, or C. </p>
 
 <p>Materials for this tutorial, including the R markdown file and associated code files that were used to create this document are available on Github at (<a href="https://github.com/berkeley-scf/tutorial-parallel-distributed">https://github.com/berkeley-scf/tutorial-parallel-distributed</a>).  You can download the files by doing a git clone from a terminal window on a UNIX-like machine, as follows:</p>
 
@@ -278,7 +278,7 @@ this is MPI, of which there are various versions, including <em>openMPI</em>, wh
 
 <ul>
 <li>simple parallelization of embarrassingly parallel computations (in R, Python, and Matlab) without writing code that explicitly uses MPI;</li>
-<li>distributed linear algebra using the pbdR front-end to the ScaLapack package; and</li>
+<li>distributed linear algebra using the pbdR front-end to the <em>ScaLapack</em> package; and</li>
 <li>using MPI explicitly (in R, Python and C).</li>
 </ul>
 
@@ -315,7 +315,7 @@ memory environment, using the MapReduce approach. In fall 2014, I gave a <a href
 
 <h1>2) Starting MPI-based jobs</h1>
 
-<p>Code that explicitly uses MPI, as well as code using MPI under the hood, such as <em>foreach</em> with <em>doMPI</em> in R and pbdR, require that you start your process(es) in a special way via the <em>mpirun</em> command. Note that <em>mpirun</em>, <em>mpiexec</em> and <em>orterun</em> are synonyms under <em>openMPI</em>. </p>
+<p>Code that explicitly uses MPI, as well as code using MPI under the hood, such as <em>foreach</em> with <em>doMPI</em> in R and pbdR, requires that you start your process(es) in a special way via the <em>mpirun</em> command. Note that <em>mpirun</em>, <em>mpiexec</em> and <em>orterun</em> are synonyms under <em>openMPI</em>. </p>
 
 <p>The basic requirements for starting such a job are that you specify the number of processes you want to run and that you indicate what machines those processes should run on. Those machines should be networked together such that MPI can ssh to the various machines without any password required.</p>
 
@@ -324,37 +324,50 @@ memory environment, using the MapReduce approach. In fall 2014, I gave a <a href
 <p>First, we can pass the machine names directly, replicating the name
 if we want multiple processes on a single machine. Note that on a Starcluster-based EC2 VM, the nodes are named master, node001, node002, etc., and the .hosts file will already exist if you follow the BCE/Starcluster instructions given on the BCE install page. </p>
 
-<p>&lt;<mpirun1, engine='bash'>&gt;=
-mpirun &ndash;host smeagol,radagast,arwen,arwen -np 4 hostname
-@</p>
+<pre><code class="bash">mpirun --host smeagol,radagast,arwen,arwen -np 4 hostname
+</code></pre>
+
+<pre><code>## smeagol
+## radagast
+## arwen
+## arwen
+</code></pre>
 
 <p>Alternatively, we can create a file with the relevant information.</p>
 
-<p>&lt;<mpirun2, engine='bash'>&gt;=
-echo &#39;smeagol slots=1&#39; &gt; .hosts
+<pre><code class="bash">echo &#39;smeagol slots=1&#39; &gt; .hosts
 echo &#39;radagast slots=1&#39; &gt;&gt; .hosts
 echo &#39;arwen slots=2&#39; &gt;&gt; .hosts
 mpirun -machinefile .hosts -np 4 hostname
-@</p>
+</code></pre>
+
+<pre><code>## smeagol
+## radagast
+## arwen
+## arwen
+</code></pre>
+
+<p>(I&#39;ve been having some MPI difficulties on a few of our servers, so in some of the results later in this tutorial, you&#39;ll see that the examples may use different machines than those indicated here.)</p>
 
 <p>An alternative is just to manually duplicate host names to indicate the number of slots (though this may not work exactly with all versions of openMPI):</p>
 
 <pre><code>echo -e &#39;smeagol\nradagast\narwen\narwen&#39; &gt; .hosts
+cat .hosts
 </code></pre>
 
 <p>To limit the number of threads for each process, we can tell <em>mpirun</em>
-to export the value of <em>OMP_NUM_THREADS</em> to the processes.</p>
+to export the value of <em>OMP_NUM_THREADS</em> to the processes. E.g., calling a C program, <em>quad_mpi</em>:</p>
 
 <pre><code>export OMP_NUM_THREADS=2
 mpirun -machinefile .hosts -np 4 -x OMP_NUM_THREADS quad_mpi
 </code></pre>
 
-<p>In these examples, I illustrated with a bash command, but one would similarly
+<p>In the examples above, I illustrated with a bash command and with a compiled C program, but one would similarly
 use the -machinefile flag when starting R or Python or a C program via mpirun.</p>
 
-<p>There are additional details involved in carefully controlling how processes are allocated to nodes, but the defaults should do a reasonable job in many situations. </p>
+<p>There are additional details involved in carefully controlling how processes are allocated to nodes, but the default arguments for mpirun should do a reasonable job in many situations. </p>
 
-<p>Also, I&#39;ve had inconsistent results in terms of having the correct number of workers start up on each of the machines specified, depending on whether I specify the number of workers implicitly via the hosts information, explicitly via -np or both. You may want to check that the right number of workers are running on each host. </p>
+<p>Also, I&#39;ve had inconsistent results in terms of having the correct number of workers start up on each of the machines specified, depending on whether I specify the number of workers implicitly via the hosts information, explicitly via -np or both. You may want to check that the right number of workers is running on each host. </p>
 
 <h1>3) Basic parallelization across nodes</h1>
 
@@ -366,44 +379,80 @@ use the -machinefile flag when starting R or Python or a C program via mpirun.</
 
 <p>Just as we used <em>foreach</em> in a shared memory context, we can
 use it in a distributed memory context as well, and R will handle
-all everything behind the scenes for you. </p>
+everything behind the scenes for you. </p>
 
 <p>Start R through the <em>mpirun</em> command as discussed above, either
 as a batch job or for interactive use. We&#39;ll only ask for 1 process
 because the worker processes will be started automatically from within R (but using the machine names information passed to mpirun).</p>
 
-<pre><code>mpirun -machinefile .hosts -np 1 R CMD BATCH --no-save doMPI.R doMPI.out
+<pre><code>mpirun -machinefile .hosts -np 1 R CMD BATCH -q --no-save doMPI.R doMPI.out
 mpirun -machinefile .hosts -np 1 R --no-save
 </code></pre>
 
 <p>Here&#39;s R code for using <em>Rmpi</em> as the back-end to <em>foreach</em>.
 If you call <em>startMPIcluster</em> with no arguments, it will start
-up one fewer worker processes than the number of hosts listed in <em>.hosts</em>,
+up one fewer worker processes than the number of hosts times slots given to mpirun
 so your R code will be more portable. </p>
 
-<p>&lt;<doMPI, eval=FALSE, cache=TRUE>&gt;=
-@</p>
+<pre><code class="r">## you should have invoked R as:
+## mpirun -machinefile .hosts -np 1 R CMD BATCH --no-save file.R file.out
 
-<p>&lt;<change-hosts, engine='bash', include=FALSE>&gt;=</p>
+library(Rmpi)
+library(doMPI)
 
-<h1>having some issues with the hosts above, so change to these for Rmpi-based stuff</h1>
+cl = startMPIcluster()  # by default will start one fewer slave
+# than elements in .hosts
 
-<p>echo &#39;scf-sm10 slots=2&#39; &gt; .hosts
-echo &#39;scf-sm11 slots=2&#39; &gt;&gt; .hosts
-@</p>
+registerDoMPI(cl)
+clusterSize(cl) # just to check
 
-<p>&lt;<doMPI-test, engine='bash'>&gt;=
-mpirun -machinefile .hosts -np 1 R CMD BATCH &ndash;no-save doMPI.R doMPI.out
+results &lt;- foreach(i = 1:200) %dopar% {
+  out = mean(rnorm(1e6))
+}
+
+closeCluster(cl)
+
+mpi.quit()
+</code></pre>
+
+<pre><code class="bash">mpirun -machinefile .hosts -np 1 R CMD BATCH -q --no-save doMPI.R doMPI.out
 cat doMPI.out
-@</p>
+</code></pre>
+
+<pre><code>## &gt; ## @knitr doMPI
+## &gt; 
+## &gt; ## you should have invoked R as:
+## &gt; ## mpirun -machinefile .hosts -np 1 R CMD BATCH --no-save file.R file.out
+## &gt; 
+## &gt; library(Rmpi)
+## &gt; library(doMPI)
+## Loading required package: foreach
+## Loading required package: iterators
+## &gt; 
+## &gt; cl = startMPIcluster()  # by default will start one fewer slave
+##  3 slaves are spawned successfully. 0 failed.
+## &gt; # than elements in .hosts
+## &gt;                                         
+## &gt; registerDoMPI(cl)
+## &gt; clusterSize(cl) # just to check
+## [1] 3
+## &gt; 
+## &gt; results &lt;- foreach(i = 1:200) %dopar% {
+## +   out = mean(rnorm(1e6))
+## + }
+## &gt; 
+## &gt; closeCluster(cl)
+## &gt; 
+## &gt; mpi.quit()
+</code></pre>
 
 <p>A caution concerning Rmpi/doMPI: when you invoke <code>startMPIcluster()</code>,
 all the slave R processes become 100% active and stay active until
 the cluster is closed. In addition, when <em>foreach</em> is actually
 running, the master process also becomes 100% active. So using this
 functionality involves some inefficiency in CPU usage. This inefficiency
-is not seen with a sockets cluster (see elsewhere in this tutorial) nor when using other
-Rmpi functionality - i.e., starting slaves with <em>mpi.spawn.Rslaves()</em>
+is not seen with a sockets cluster (Section 3.1.4) nor when using other
+Rmpi functionality - i.e., starting slaves with <em>mpi.spawn.Rslaves</em>
 and then issuing commands to the slaves.</p>
 
 <p>If you specified <code>-np</code> with more than one process then as with the C-based
@@ -413,20 +462,20 @@ R processes are directly started by <em>mpirun</em>, which they are
 not if you set -np 1. The <em>maxcores</em> argument to <em>startMPIcluster()</em>
 does not seem to function (perhaps it does on other systems).</p>
 
-<p>Sidenote: You can use <em>doMPI</em> on a single node, which might be useful for ignoring
+<p>Sidenote: You can use <em>doMPI</em> on a single node, which might be useful for avoiding
 some of the conflicts between R&#39;s forking functionality and openBLAS that
 can cause R to hang when using <em>foreach</em> with <em>doParallel</em>.</p>
 
 <h3>3.1.2) Using pbdR</h3>
 
 <p>There is a relatively new effort to enhance R&#39;s capability for distributed
-memory processing called <a href="http://r-pbd.org">pbdR</a>. For an extensive tutorial, see
-<a href="https://github.com/wrathematics/pbdDEMO/blob/master/inst/doc/pbdDEMO-guide.pdf?raw=true">the pbdDEMO vignette</a>.
+memory processing called <a href="http://r-pbd.org">pbdR</a>. For an extensive tutorial, see the
+<a href="https://github.com/wrathematics/pbdDEMO/blob/master/inst/doc/pbdDEMO-guide.pdf?raw=true">pbdDEMO vignette</a>.
  <em>pbdR</em> is designed for
 SPMD processing in batch mode, which means that you start up multiple
 processes in a non-interactive fashion using mpirun. The same code
 runs in each R process so you need to have the code behavior depend
-on the process ID, as we&#39;ll see in some subsequent sections of this tutorial.</p>
+on the process ID.</p>
 
 <p><em>pbdR</em> provides the following capabilities:</p>
 
@@ -443,80 +492,209 @@ in other readily-accessible software.</p>
 <p>Let&#39;s see parallel-apply style computations in pbdR.</p>
 
 <p>Here&#39;s some basic syntax for doing a distributed <em>apply()</em> on
-a matrix that is on one of the workers. So in this case, the matrix is not initially distributed to the workers &ndash; that is done as part of the <em>pbdApply</em> computation. (One can also use <em>pbdApply</em> on matrices that are already distributed, and this is of course recommended for large matrices &ndash; see Section 4.)</p>
+a matrix that is on one of the workers. So in this case, the matrix is not initially distributed to the workers &ndash; that is done as part of the <em>pbdApply</em> computation. (One can also use <em>pbdApply</em> on matrices that are already distributed, and this is of course recommended for large matrices &ndash; see Section 4.) </p>
 
-<p>&lt;<pbd-apply, cache=TRUE, eval=FALSE>&gt;=
-@</p>
+<p>As mentinoed above, pbdR code is always run in batch mode, with the same code running on all of the processes. This means that you often need to explicitly build in logic about which process should execute a given piece of code, including print statements. Here the check for <code>comm.rank() == 0</code> allows us to only create the matrix and call some print statements on the master node (rank 0).</p>
 
-<p>pbdR code is always run in batch mode, with the same code running on all of the processes. This means that in some cases you need to explicitly build in logic about which process should execute a given piece of code, including print statements. </p>
+<pre><code class="r"># invoke as mpirun -machinefile .hosts -np 4 Rscript pbd-apply.R &gt; pbd-apply.out
 
-<p>&lt;<pbd-apply-test, engine='bash'>&gt;=
-mpirun -machinefile .hosts -np 4 Rscript pbd-apply.R &gt; pbd-apply.out
+library(pbdMPI, quiet = TRUE )
+init()
+
+nrows &lt;- 1e6
+
+if(comm.rank()==0) {
+    x &lt;- matrix(rnorm(nrows*50), nrow = nrows)
+}
+
+sm &lt;- comm.timer(out &lt;- pbdApply(x, 1, mean, pbd.mode = &#39;mw&#39;, rank.source = 0))
+if(comm.rank()==0) {
+    print(out[1:5])
+    print(sm)
+}
+
+finalize()
+</code></pre>
+
+<pre><code class="bash">mpirun -machinefile .hosts -np 4 Rscript pbd-apply.R &gt; pbd-apply.out
 cat pbd-apply.out
-@</p>
+</code></pre>
+
+<pre><code>## [1] -0.05169168 -0.05552842 -0.22260412 -0.21349725 -0.11454628
+##      min     mean      max 
+##  7.75200 17.31525 20.52700
+</code></pre>
 
 <h3>3.1.3) Using parallel apply functionality in Rmpi</h3>
 
 <p><em>Rmpi</em> is a package that provides MPI capabilities from R, including low-level MPI type calls (see Section 5). It also provides high-level wrapper functions that use MPI behind the scenes, including parallel apply functionality for operating on lists (and vectors) with functions such as <em>mpi.parSapply</em>. </p>
 
-<p>The documentation (see <code>help(mpi.parSapply)</code>) documents a number of similarly named functions. It appears that they are basically multi-node versions of the analogous <em>parSapply</em> and related functions. </p>
+<p>The documentation (see <code>help(mpi.parSapply)</code>) documents a number of confusingly-named functions. It appears that they are basically multi-node versions of the analogous <em>parSapply</em> and related functions. </p>
 
-<p>&lt;<mpi.parSapply, eval=FALSE>&gt;=
-@</p>
+<pre><code class="r">library(Rmpi)
+mpi.spawn.Rslaves()
 
-<p>&lt;<mpi.parSapply-example, engine='bash'>&gt;=
-mpirun -machinefile .hosts -np 1 R CMD BATCH &ndash;no-save mpi.parSapply.R mpi.parSapply.out
-cat parSapply.out
-@</p>
+myfun &lt;- function(i) {
+      set.seed(i)
+      mean(rnorm(1e7))
+}
 
-<p>It appears that it may be important to set <em>job.num</em> when the number of tasks is bigger than the number of worker processes to ensure load-balancing (for some reason this seems to make a difference even when the tasks all take very similar amounts of time to complete).</p>
+x &lt;- seq_len(25)
+# parallel sapply-type calculations on a vector 
+system.time(out &lt;- mpi.parSapply(x, myfun))
+system.time(out &lt;- mpi.applyLB(x, myfun))
+
+nrows &lt;- 10000
+x &lt;- matrix(rnorm(nrows*50), nrow = nrows)
+# parallel apply on a matrix
+out &lt;- mpi.parApply(x, 1, mean)
+
+mpi.close.Rslaves()
+mpi.quit()
+</code></pre>
+
+<pre><code class="bash">mpirun -machinefile .hosts -np 1 R CMD BATCH -q --no-save mpi.parSapply.R mpi.parSapply.out
+cat mpi.parSapply.out
+</code></pre>
+
+<pre><code>## &gt; ## @knitr mpi.parSapply
+## &gt; 
+## &gt; library(Rmpi)
+## &gt; mpi.spawn.Rslaves()
+##  4 slaves are spawned successfully. 0 failed.
+## master (rank 0, comm 1) of size 5 is running on: scf-sm10 
+## slave1 (rank 1, comm 1) of size 5 is running on: scf-sm10 
+## slave2 (rank 2, comm 1) of size 5 is running on: scf-sm10 
+## slave3 (rank 3, comm 1) of size 5 is running on: scf-sm11 
+## slave4 (rank 4, comm 1) of size 5 is running on: scf-sm11 
+## &gt; 
+## &gt; myfun &lt;- function(i) {
+## +       set.seed(i)
+## +       mean(rnorm(1e7))
+## + }
+## &gt; 
+## &gt; x &lt;- seq_len(25)
+## &gt; # parallel sapply-type calculations on a vector 
+## &gt; system.time(out &lt;- mpi.parSapply(x, myfun))
+##    user  system elapsed 
+##   5.997   5.225  11.463 
+## &gt; system.time(out &lt;- mpi.applyLB(x, myfun))
+##    user  system elapsed 
+##   6.548   4.981  11.638 
+## &gt; 
+## &gt; nrows &lt;- 10000
+## &gt; x &lt;- matrix(rnorm(nrows*50), nrow = nrows)
+## &gt; # parallel apply on a matrix
+## &gt; out &lt;- mpi.parApply(x, 1, mean)
+## &gt; 
+## &gt; mpi.close.Rslaves()
+## [1] 1
+## &gt; mpi.quit()
+</code></pre>
+
+<p>In some cases, it may be useful <em>job.num</em> when the number of tasks is bigger than the number of worker processes to ensure load-balancing.</p>
 
 <h3>3.1.4) Using sockets</h3>
 
 <p>One can also set up a cluster with the worker processes communicating via sockets. You just need to specify
 a character vector with the machine names as the input to <em>makeCluster()</em>. A nice thing about this is that it doesn&#39;t involve any of the complications of working with needing MPI installed.</p>
 
-<p>&lt;<sockets, cache=TRUE>&gt;=
-@</p>
+<pre><code class="r">library(parallel)
+
+machines = c(rep(&quot;smeagol.berkeley.edu&quot;, 1),
+    rep(&quot;gandalf.berkeley.edu&quot;, 1),
+    rep(&quot;arwen.berkeley.edu&quot;, 2))
+cl = makeCluster(machines)
+cl
+</code></pre>
+
+<pre><code>## socket cluster with 4 nodes on hosts &#39;smeagol.berkeley.edu&#39;, &#39;gandalf.berkeley.edu&#39;, &#39;arwen.berkeley.edu&#39;
+</code></pre>
+
+<pre><code class="r">n = 1e7
+clusterExport(cl, c(&#39;n&#39;))
+fun = function(i)
+  out = mean(rnorm(n))
+
+result &lt;- parSapply(cl, 1:20, fun)
+
+result[1:5]
+</code></pre>
+
+<pre><code>## [1]  4.172127e-05  1.300298e-04 -7.128446e-04 -4.530147e-04 -3.676025e-04
+</code></pre>
+
+<pre><code class="r">stopCluster(cl) # not strictly necessary
+</code></pre>
 
 <h3>3.1.5) The <em>partools</em> package</h3>
 
-<p><em>partools</em> is a new package developed by Norm Matloff at UC-Davis. He has the perspective that Spark/Hadoop are not the right tools in many cases when doing statistics-related work and has developed some simple tools for parallelizing computation across multiple nodes, also referred to as <em>Snowdoop</em>. The tools make use of the key idea in Hadoop of a distributed file system and distributed data objects but avoid the overhead of trying to ensure fault tolerance, which is critical only on very large clusters of machines.</p>
+<p><em>partools</em> is a new package developed by Norm Matloff at UC-Davis. He has the perspective that Spark/Hadoop are not the right tools in many cases when doing statistics-related work and has developed some simple tools for parallelizing computation across multiple nodes, also referred to as <em>Snowdoop</em>. The tools make use of the key idea in Hadoop of a distributed file system and distributed data objects but avoid the complications of trying to ensure fault tolerance, which is critical only on very large clusters of machines.</p>
 
 <p>I haven&#39;t yet had time to develop any material based on <em>partools</em> but hope to in the future. </p>
 
 <h2>3.2) Python</h2>
 
-<p>One way to parallelize tasks across nodes in Python is using the pp package (also useful for parallelizing on a single machine as discussed in the parallel basics tutorial). </p>
+<p>One way to parallelize tasks across nodes in Python is using the pp package (also useful for parallelizing on a single machine as discussed in the <a href="https://github.com/berkeley-scf/tutorial-parallel-basics">parallel basics tutorial</a>. </p>
 
 <p>Assuming that the pp package is installed on each node (e.g., <code>sudo apt-get install install python-pp</code> on an Ubuntu machine), you need to start up a ppserver process on each node. E.g., if <code>$nodes</code> is a UNIX environment variable containing the names of the worker nodes and you want to start 2 workers per node:</p>
 
-<p>&lt;<pp-start, engine='bash'>&gt;=
-nodes=&#39;smeagol radagast beren arwen&#39;
-for node in $nodes; do</p>
-
-<h1>cd /tmp is because of issue with starting ppserver in home directory</h1>
-
-<h1>-w says how many workers to start on the node</h1>
-
-<pre><code>ssh $node &quot;cd /tmp &amp;&amp; ppserver -s mysecretphrase -t 50 -w 2 &amp;&quot; &amp; 
+<pre><code class="bash">nodes=&#39;smeagol radagast beren arwen&#39;
+for node in $nodes; do
+# cd /tmp is because of issue with starting ppserver in home directory
+# -w says how many workers to start on the node
+    ssh $node &quot;cd /tmp &amp;&amp; ppserver -s mysecretphrase -t 120 -w 2 &amp;&quot; &amp; 
+done
 </code></pre>
-
-<p>done
-@</p>
 
 <p>Now in our Python code we create a server object and submit jobs to the server object, which manages the farming out of the tasks. Note that this will run interactively in iPython or as a script from UNIX, but there have been times where I was not able to run it interactively in the base Python interpreter. Also note that while we are illustrating this as basically another parallelized for loop, the individual jobs can be whatever calculations you want, so the  function (in this case it&#39;s always <em>pi.sample</em>) could change from job to job.</p>
 
-<p>&lt;<python-pp, engine='python'>&gt;=
-@</p>
+<pre><code class="python">import numpy.random
+import pp
+import time
+import pi_code # provided in pi_code.py
+
+samples_per_slice = 10000000
+num_slices = 24*20
+
+# remember to start ppserver on worker nodes
+
+# assume &#39;hosts&#39; contains the names of the nodes on which you 
+# started ppserver
+nprocsPerNode = 2
+hosts = [&#39;smeagol&#39;, &#39;radagast&#39;, &#39;beren&#39;, &#39;arwen&#39;]
+ppservers = hosts * nprocsPerNode
+
+print ppservers
+# put ncpus=0 here or it will start workers locally too
+job_server = pp.Server(ncpus = 0, ppservers = tuple(ppservers), secret = &#39;mysecretphrase&#39;)
+
+inputs = [(i, samples_per_slice) for i in xrange(num_slices)]
+
+t0 = time.time()
+jobs = [job_server.submit(pi_code.sample, invalue, modules = (&#39;numpy.random&#39;,)) for invalue in inputs]
+results = [job() for job in jobs]
+t1 = time.time()
+
+print &quot;Pi is roughly %f&quot; % (4.0 * sum(results) / (num_slices*samples_per_slice))
+print &quot;Time elapsed: &quot;, t1 - t0
+</code></pre>
+
+<pre><code class="bash">python python-pp.py &gt; python-pp.out
+cat python-pp.out
+</code></pre>
+
+<pre><code>[&#39;smeagol&#39;, &#39;radagast&#39;, &#39;beren&#39;, &#39;arwen&#39;, &#39;smeagol&#39;, &#39;radagast&#39;, &#39;beren&#39;, &#39;arwen&#39;]
+Pi is roughly 3.141567
+Time elapsed:  32.0389587879
+</code></pre>
 
 <p>The -t flag used when starting ppserver should ensure that the server processes are removed, but if you need to do it manually, this should work:</p>
 
-<p>&lt;<pp-stop, engine='bash', eval=FALSE>&gt;=
-for node in $nodes; do
+<pre><code class="bash">for node in $nodes; do
     killall ppserver
 done
-@</p>
+</code></pre>
 
 <p><em>ipython</em> also provides parallelization capabilities. <a href="https://ipython.org/ipython-doc/3/parallel/index.html">Here is some info from the IPython documentation</a>, but I haven&#39;t explored this yet. </p>
 
@@ -525,6 +703,8 @@ done
 <p>To use Matlab across multiple nodes, you need to have the Matlab Distributed Computing Server (DCS). If it is installed, one can set up Matlab so that <em>parfor</em> will distribute its work across multiple nodes. Details may vary depending on how DCS is installed on your system. </p>
 
 <h1>4) Distributed linear algebra in R using pbdR</h1>
+
+<h2>4.1) Distributed linear algebra example</h2>
 
 <p>And here&#39;s how you would set up a distributed matrix and do linear
 algebra on it. Note that when working with large matrices, you would
@@ -535,21 +715,73 @@ and then create the distributed version of the matrix, <em>dx</em>, with <em>as.
 
 <p>Here&#39;s the code in <em>pbd-linalg.R</em>.</p>
 
-<p>&lt;<pbd-linalg, eval=FALSE>&gt;=
-@</p>
+<pre><code class="r">library(pbdDMAT, quiet = TRUE )
+
+n &lt;- 4096*2
+
+# if you are putting multiple processes on node
+# you may want to prevent threading of the linear algebra:
+# library(RhpcBLASctl)
+# blas_set_num_threads(1)
+# (or do by passing OMP_NUM_THREADS to mpirun
+
+init.grid()
+
+if(comm.rank()==0) print(date())
+
+# pbd allows for parallel I/O, but here
+# we keep things simple and distribute
+# an object from one process
+if(comm.rank() == 0) {
+    x &lt;- rnorm(n^2)
+    dim(x) &lt;- c(n, n)
+} else x &lt;- NULL
+dx &lt;- as.ddmatrix(x)
+
+timing &lt;- comm.timer(sigma &lt;- crossprod(dx))
+
+if(comm.rank()==0) {
+    print(date())
+    print(timing)
+}
+
+timing &lt;- comm.timer(out &lt;- chol(sigma))
+
+if(comm.rank()==0) {
+    print(date())
+    print(timing)
+}
+
+finalize()
+</code></pre>
 
 <p>As before we run the job in batch mode via mpirun:</p>
 
-<p>&lt;<pbd-apply-example, engine='bash', cache=TRUE>&gt;=
-export OMP_NUM_THREADS=1
+<pre><code class="bash">export OMP_NUM_THREADS=1
 mpirun -machinefile .hosts -np 4 -x OMP_NUM_THREADS Rscript pbd-linalg.R &gt; pbd-linalg.out
 cat pbd-linalg.out
-@</p>
+</code></pre>
+
+<pre><code>## Using 2x2 for the default grid size
+## 
+## [1] &quot;Sat Oct 17 12:05:38 2015&quot;
+## [1] &quot;Sat Oct 17 12:06:54 2015&quot;
+##    min   mean    max 
+## 48.086 50.806 52.585 
+## [1] &quot;Sat Oct 17 12:08:10 2015&quot;
+##      min     mean      max 
+## 76.47000 76.51125 76.53300
+</code></pre>
 
 <p>You may want to set the <em>bldim</em> argument to <em>as.ddmatrix</em>. That determines
 the size of the submatrices (aka &#39;blocks&#39;) into which the overall matrix is split. Generally, multiple
-submatrices are owned by an individual worker process. To use 100x100 
-blocks: <code>dx &lt;- as.ddmatrix(x, bldim = c(100, 100))</code>. In general, you don&#39;t
+submatrices are owned by an individual worker process. For example, to use 100x100 
+blocks, you&#39;d have</p>
+
+<pre><code>dx &lt;- as.ddmatrix(x, bldim = c(100, 100))
+</code></pre>
+
+<p>In general, you don&#39;t
 want the blocks too big as the work may not be well load-balanced, or too small as
 that may have a higher computational cost in terms of latency and communication. 
 My experiments suggest that it&#39;s worth exploring block sizes of 10x10 through 1000x1000 (if you have square matrices). </p>
@@ -558,11 +790,13 @@ My experiments suggest that it&#39;s worth exploring block sizes of 10x10 throug
 crossproduct and Cholesky for the 8192x8192 matrix on 3 EC2 nodes
 (2 cores per node) with -np 6 took 39 seconds for each operation,
 while doing with two threads on the master node took 64 seconds (crossproduct)
-and 23 seconds (Cholesky). That said, some other experiments
-I&#39;ve done haven&#39;t show much speedup in using multiple nodes with pbdR compared
+and 23 seconds (Cholesky). While that is a single test, some other experiments
+I&#39;ve done also haven&#39;t show much speedup in using multiple nodes with pbdR compared
 to simply using a threaded BLAS on one machine.  So you may need to get fairly big matrices
 that won&#39;t fit in memory on a single machine before it&#39;s worthwhile 
 to do the computation in distributed fashion using pbdR.</p>
+
+<h2>4.2) Constructing a distributed matrix on parallel</h2>
 
 <p>pbdR has functionality for reading in parallel from a parallel file
 system such as Lustre (available on Berkeley&#39;s Savio cluster).  Things
@@ -575,8 +809,27 @@ pbd version of that distributed matrix and finally convert the
 distributed matrix to a standard pbd block structure on which the
 linear algebra can be done efficiently. </p>
 
-<p>&lt;<pbd-construct, eval=FALSE>&gt;=
-@</p>
+<pre><code class="r">library(pbdDMAT, quiet = TRUE)
+init.grid()
+
+nprocs &lt;- comm.size()
+
+nrows &lt;- 10000
+ncolsPerBlock &lt;- nrows/nprocs
+
+# each process has a block of columns as an R matrix
+subdata &lt;- matrix(rnorm(nrows * ncolsPerBlock), ncol = ncols)
+
+# now construct the distributed matrix object
+tmp &lt;- ddmatrix(data = subdata, nrow = nrows, ncol = nrows,
+               bldim = c(nrows, ncolsPerBlock), ICTXT = 1)
+# now rearrange the blocks for better linear algebra performance
+dx &lt;- redistribute(tmp, bldim = c(100, 100), ICTXT = 0)
+
+finalize ()
+</code></pre>
+
+<p>The code above creates the submatrices within the R sessions, but one could also read in from separate files, one per process.</p>
 
 <p>The code in <em>redistribute-test.R</em> demonstrates that constructing the full matrix 
 from column-wise blocks with this syntax works correctly. </p>
@@ -615,7 +868,7 @@ can hang, error messages from the workers may not be seen or readily
 accessible, and it can be difficult to assess the state of the worker
 processes. </p>
 
-<h2>5.2) Using MPI in C &ndash; basic syntax</h2>
+<h2>5.2) Basic syntax for MPI in C</h2>
 
 <p>Here&#39;s a basic hello world example  The code is also in <em>mpiHello.c</em>.</p>
 
@@ -642,28 +895,19 @@ int main(int argc, char* argv) {
 I&#39;ll use the MPI C++ compiler
 even though the code is all plain C code.</p>
 
-<p>&lt;<change-hosts1, engine='bash', include=FALSE>&gt;=</p>
-
-<h1>change hosts back so pdf shows original hosts</h1>
-
-<p>echo &#39;smeagol slots=1&#39; &gt; .hosts
-echo &#39;radagast slots=1&#39; &gt;&gt; .hosts
-echo &#39;arwen slots=2&#39; &gt;&gt; .hosts
-@</p>
-
-<p>&lt;<mpiHello, engine = 'bash'>&gt;=
-mpicxx mpiHello.c -o mpiHello
+<pre><code class="bash">mpicxx mpiHello.c -o mpiHello
 cat .hosts # what hosts do I expect it to run on?
 mpirun -machinefile .hosts -np 4 mpiHello
-@</p>
+</code></pre>
 
-<p>&lt;<change-hosts2, engine='bash', include=FALSE>&gt;=</p>
-
-<h1>having some issues with the hosts above, so change to these for Rmpi-based stuff</h1>
-
-<p>echo &#39;scf-sm10 slots=2&#39; &gt; .hosts
-echo &#39;scf-sm11 slots=2&#39; &gt;&gt; .hosts
-@</p>
+<pre><code>## smeagol slots=1
+## radagast slots=1
+## arwen slots=2
+## Hello from processor 1 of 4 on radagast
+## Hello from processor 2 of 4 on arwen
+## Hello from processor 3 of 4 on arwen
+## Hello from processor 0 of 4 on smeagol
+</code></pre>
 
 <p>To actually write real MPI code, you&#39;ll need to go learn some of the
 MPI syntax. See <em>quad_mpi.c</em> and <em>quad_mpi.cpp</em>, which
@@ -671,18 +915,43 @@ are example C and C++ programs (for approximating an integral via
 quadrature) that show some of the basic MPI functions. Compilation
 and running are as above:</p>
 
-<p>&lt;<quad_mpi, engine = 'bash'>&gt;=
-mpicxx quad_mpi.cpp -o quad_mpi
+<pre><code class="bash">mpicxx quad_mpi.cpp -o quad_mpi
 mpirun -machinefile .hosts -np 4 quad_mpi
-@</p>
+</code></pre>
+
+<pre><code>## 17 October 2015 02:05:02 PM
+## 
+## QUAD_MPI
+##   C++/MPI version
+##   Estimate an integral of f(x) from A to B.
+##   f(x) = 50 / (pi * ( 2500 * x * x + 1 ) )
+## 
+##   A = 0
+##   B = 10
+##   N = 999999999
+##   EXACT =       0.4993633810764567
+## 
+##   Use MPI to divide the computation among 4 total processes,
+##   of which one is the master and does not do core computations.
+##   Process 3 contributed MY_TOTAL = 0.000318308
+##   Process 2 contributed MY_TOTAL = 0.00095491
+##   Process 1 contributed MY_TOTAL = 0.49809
+## 
+##   Estimate =       0.4993634591634721
+##   Error = 7.808701535383378e-08
+##   Time = 9.443312883377075
+## 
+## QUAD_MPI:
+##   Normal end of execution.
+## 
+## 17 October 2015 02:05:11 PM
+</code></pre>
 
 <h2>5.3) Using MPI from R via Rmpi or pbdR</h2>
 
 <h3>5.3.1) Rmpi</h3>
 
-<p>R users can use Rmpi to interface with MPI. To use Rmpi,
-you can simply start R as you normally do by invoking a command-line
-R session or using R CMD BATCH.</p>
+<p>R users can use Rmpi to interface with MPI. </p>
 
 <p>Here&#39;s some example code that uses actual Rmpi syntax (as opposed
 to <em>foreach</em> with Rmpi as the back-end, where the use of Rmpi was hidden from us).
@@ -692,16 +961,183 @@ the slaves and invokes commands on them. It may be possible to run
 Rmpi in a context where each process runs the same code based
 on invoking with Rmpi, but I haven&#39;t investigated this further. </p>
 
-<p>&lt;<Rmpi, eval=FALSE>&gt;=
-@</p>
+<pre><code class="r"># example syntax of standard MPI functions
 
-<p>As before, we would start R via <em>mpirun</em>, requesting one process, either for an interactive session or a batch job. We then
-start the workers within R.</p>
+library(Rmpi)
+# by default will start one fewer workers than processes
+# saving one for the master
+mpi.spawn.Rslaves()
 
-<p>&lt;<Rmpi-example, engine='bash'>&gt;=
-mpirun -machinefile .hosts -np 1 R CMD BATCH &ndash;no-save Rmpi.R Rmpi.out
+n = 5
+mpi.bcast.Robj2slave(n)
+mpi.bcast.cmd(id &lt;- mpi.comm.rank())
+mpi.bcast.cmd(x &lt;- rnorm(id))
+
+mpi.remote.exec(ls(.GlobalEnv))
+
+mpi.bcast.cmd(y &lt;- 2 * x)
+mpi.remote.exec(print(y))
+
+objs &lt;- as.list(c(&#39;x&#39;, &#39;n&#39;))
+# next command sends value of objs on _master_ as argument to rm
+mpi.remote.exec(do.call, rm, objs)
+
+# verify that &#39;n&#39; is gone:
+mpi.remote.exec(print(n))
+
+# collect results back via send/recv
+mpi.remote.exec(mpi.send.Robj(y, dest = 0, tag = 1))
+results = list()
+for(i in 1:(mpi.comm.size()-1)){
+  results[[i]] = mpi.recv.Robj(source = i, tag = 1)
+}
+
+print(results)
+
+mpi.close.Rslaves()
+mpi.quit()
+</code></pre>
+
+<p><em>mpi.bcast.cmd</em> and  <em>mpi.remote.exec</em> are quite similar - they execute a function on the workers and can also use arguments on the master as inputs to the function evaluated on the workers (see the &hellip; argument). <em>mpi.remote.exec</em> can return the results of the execution to the master. </p>
+
+<p>As before, we would start R via <em>mpirun</em>, requesting one process, since the workers are started within R via <em>mpi.spawn.Rslaves</em>.</p>
+
+<pre><code class="bash">mpirun -machinefile .hosts -np 1 R CMD BATCH -q --no-save Rmpi.R Rmpi.out
 cat Rmpi.out
-@</p>
+</code></pre>
+
+<pre><code>## &gt; ## @knitr Rmpi
+## &gt; 
+## &gt; # example syntax of standard MPI functions
+## &gt; 
+## &gt; library(Rmpi)
+## &gt; # by default will start one fewer workers than processes
+## &gt; # saving one for the master
+## &gt; mpi.spawn.Rslaves()
+##  4 slaves are spawned successfully. 0 failed.
+## master (rank 0, comm 1) of size 5 is running on: scf-sm10 
+## slave1 (rank 1, comm 1) of size 5 is running on: scf-sm10 
+## slave2 (rank 2, comm 1) of size 5 is running on: scf-sm10 
+## slave3 (rank 3, comm 1) of size 5 is running on: scf-sm11 
+## slave4 (rank 4, comm 1) of size 5 is running on: scf-sm11 
+## &gt; 
+## &gt; n = 5
+## &gt; mpi.bcast.Robj2slave(n)
+## &gt; mpi.bcast.cmd(id &lt;- mpi.comm.rank())
+## &gt; mpi.bcast.cmd(x &lt;- rnorm(id))
+## &gt; 
+## &gt; mpi.remote.exec(ls(.GlobalEnv))
+## $slave1
+## [1] &quot;id&quot; &quot;n&quot;  &quot;x&quot; 
+## 
+## $slave2
+## [1] &quot;id&quot; &quot;n&quot;  &quot;x&quot; 
+## 
+## $slave3
+## [1] &quot;id&quot; &quot;n&quot;  &quot;x&quot; 
+## 
+## $slave4
+## [1] &quot;id&quot; &quot;n&quot;  &quot;x&quot; 
+## 
+## &gt; 
+## &gt; mpi.bcast.cmd(y &lt;- 2 * x)
+## &gt; mpi.remote.exec(print(y))
+## $slave1
+## [1] 2.52689
+## 
+## $slave2
+## [1] -1.6820329  0.8934232
+## 
+## $slave3
+## [1]  3.3031596 -2.3544619 -0.5147955
+## 
+## $slave4
+## [1] -0.34978007 -0.03258057 -1.74705907 -2.20813628
+## 
+## &gt; 
+## &gt; objs &lt;- as.list(c(&#39;x&#39;, &#39;n&#39;))
+## &gt; # next command sends value of objs on _master_ as argument to rm
+## &gt; mpi.remote.exec(do.call, rm, objs)
+## $slave2
+## [1] 0
+## 
+## &gt; 
+## &gt; # verify that &#39;n&#39; is gone:
+## &gt; mpi.remote.exec(print(n))
+## $slave1
+## [1] &quot;Error in print(n) : object &#39;n&#39; not found\n&quot;
+## attr(,&quot;class&quot;)
+## [1] &quot;try-error&quot;
+## attr(,&quot;condition&quot;)
+## &lt;simpleError in print(n): object &#39;n&#39; not found&gt;
+## 
+## $slave2
+## [1] &quot;Error in print(n) : object &#39;n&#39; not found\n&quot;
+## attr(,&quot;class&quot;)
+## [1] &quot;try-error&quot;
+## attr(,&quot;condition&quot;)
+## &lt;simpleError in print(n): object &#39;n&#39; not found&gt;
+## 
+## $slave3
+## [1] &quot;Error in print(n) : object &#39;n&#39; not found\n&quot;
+## attr(,&quot;class&quot;)
+## [1] &quot;try-error&quot;
+## attr(,&quot;condition&quot;)
+## &lt;simpleError in print(n): object &#39;n&#39; not found&gt;
+## 
+## $slave4
+## [1] &quot;Error in print(n) : object &#39;n&#39; not found\n&quot;
+## attr(,&quot;class&quot;)
+## [1] &quot;try-error&quot;
+## attr(,&quot;condition&quot;)
+## &lt;simpleError in print(n): object &#39;n&#39; not found&gt;
+## 
+## &gt; 
+## &gt; # collect results back via send/recv
+## &gt; mpi.remote.exec(mpi.send.Robj(y, dest = 0, tag = 1))
+## $slave1
+##          used (Mb) gc trigger (Mb) max used (Mb)
+## Ncells 223303 12.0     460000 24.6   350000 18.7
+## Vcells 320694  2.5     786432  6.0   785990  6.0
+## 
+## $slave2
+##          used (Mb) gc trigger (Mb) max used (Mb)
+## Ncells 223303 12.0     460000 24.6   350000 18.7
+## Vcells 320695  2.5     786432  6.0   785990  6.0
+## 
+## $slave3
+##          used (Mb) gc trigger (Mb) max used (Mb)
+## Ncells 223303 12.0     460000 24.6   350000 18.7
+## Vcells 320697  2.5     786432  6.0   785990  6.0
+## 
+## $slave4
+##          used (Mb) gc trigger (Mb) max used (Mb)
+## Ncells 223303 12.0     460000 24.6   350000 18.7
+## Vcells 320697  2.5     786432  6.0   785990  6.0
+## 
+## &gt; results = list()
+## &gt; for(i in 1:(mpi.comm.size()-1)){
+## +   results[[i]] = mpi.recv.Robj(source = i, tag = 1)
+## + }
+## &gt;   
+## &gt; print(results)
+## [[1]]
+## [1] 2.52689
+## 
+## [[2]]
+## [1] -1.6820329  0.8934232
+## 
+## [[3]]
+## [1]  3.3031596 -2.3544619 -0.5147955
+## 
+## [[4]]
+## [1] -0.34978007 -0.03258057 -1.74705907 -2.20813628
+## 
+## &gt; 
+## &gt; mpi.close.Rslaves()
+## [1] 1
+## &gt; mpi.quit()
+</code></pre>
 
 <p>Note that if you do this in interactive mode, some of the usual functionality
 of command line R (tab completion, scrolling for history) is not enabled
@@ -720,37 +1156,93 @@ many workers are running.</p>
 (estimating an integral via Monte Carlo - in this case estimating
 the value of pi).</p>
 
-<p>&lt;<change-hosts3, engine='bash', include=FALSE>&gt;=
-echo &#39;smeagol slots=1&#39; &gt; .hosts
-echo &#39;radagast slots=1&#39; &gt;&gt; .hosts
-echo &#39;arwen slots=2&#39; &gt;&gt; .hosts
-@</p>
+<pre><code class="r">library(pbdMPI, quiet = TRUE )
+init()
 
-<p>&lt;<pbd-mpi, cache=TRUE, eval=FALSE>&gt;=
-@</p>
+myRank &lt;- comm.rank() # comm index starts at 0 , not 1
+comm.print(myRank , all.rank=TRUE)
+node &lt;- system(&quot;cat /etc/hostname&quot;, intern = TRUE) # Sys.getenv(&quot;HOSTNAME&quot;)
+if(myRank == 0) {
+    comm.print(paste0(&quot;hello, world from &quot;, myRank, &quot; &quot;, node), all.rank=TRUE)
+} else comm.print(paste0(&quot;goodbye from &quot;, myRank, &quot; &quot;, node), all.rank=TRUE)
 
-<p>&lt;<pbd-apply-example, engine='bash', cache=TRUE>&gt;=
-mpirun -machinefile .hosts -np 4 Rscript pbd-mpi.R &gt; pbd-mpi.out
+if(comm.rank() == 0) print(date())
+set.seed(myRank)  # see parallel basics tutorial for more on parallel random number generation
+N.gbd &lt;- 1e7
+X.gbd &lt;- matrix(runif(N.gbd * 2), ncol = 2)
+r.gbd &lt;- sum(rowSums(X.gbd^2) &lt;= 1)
+ret &lt;- allreduce(c(N.gbd,r.gbd), op = &quot;sum&quot;)
+PI &lt;- 4 * ret [2] / ret [1]
+comm.print(paste0(&quot;Pi is roughly: &quot;, PI))
+if(comm.rank() == 0) print(date())
+
+finalize()
+</code></pre>
+
+<pre><code class="bash">mpirun -machinefile .hosts -np 4 Rscript pbd-mpi.R &gt; pbd-mpi.out
 cat pbd-mpi.out
-@</p>
+</code></pre>
 
-<p>&lt;<change-hosts4, engine='bash', include=FALSE>&gt;=
-echo &#39;scf-sm10 slots=2&#39; &gt; .hosts
-echo &#39;scf-sm11 slots=2&#39; &gt;&gt; .hosts
-@</p>
+<pre><code>## COMM.RANK = 2
+## [1] 2
+## COMM.RANK = 3
+## [1] 3
+## COMM.RANK = 1
+## [1] 1
+## COMM.RANK = 0
+## [1] 0
+## COMM.RANK = 0
+## [1] &quot;hello, world from 0 scf-sm10&quot;
+## [1] &quot;Sat Oct 17 12:21:28 2015&quot;
+## COMM.RANK = 3
+## [1] &quot;goodbye from 3 scf-sm11&quot;
+## COMM.RANK = 1
+## [1] &quot;goodbye from 1 scf-sm10&quot;
+## COMM.RANK = 2
+## [1] &quot;goodbye from 2 scf-sm11&quot;
+## COMM.RANK = 0
+## [1] &quot;Pi is roughly: 3.1421032&quot;
+## [1] &quot;Sat Oct 17 12:21:31 2015&quot;
+</code></pre>
 
 <h2>5.4) Using MPI from Python via mpi4py</h2>
 
 <p>Here&#39;s some basic use of MPI within Python.</p>
 
-<p>&lt;<mpi4py, engine='python', eval=FALSE>&gt;=
-@</p>
+<pre><code class="python">from mpi4py import MPI
+import numpy as np
+
+comm = MPI.COMM_WORLD
+
+# simple print out Rank &amp; Size
+id = comm.Get_rank()
+print &quot;Of &quot;, comm.Get_size() , &quot; workers, I am number &quot; , id, &quot;.&quot;
+
+def f(id, n):
+    np.random.seed(id)
+    return np.mean(np.random.normal(0, 1, n))
+
+n = 1000000
+result = f(id, n)
+
+
+output = comm.gather(result, root = 0)
+
+if id == 0:
+    print output
+</code></pre>
 
 <p>To run the code, we start Python through the mpirun command as done previously.</p>
 
-<p>&lt;<mpi4py-example, engine = 'bash'>&gt;=
-mpirun -machinefile .hosts -np 4 python example-mpi.py 
-@</p>
+<pre><code class="bash">mpirun -machinefile .hosts -np 4 python example-mpi.py 
+</code></pre>
+
+<pre><code>## Of  4  workers, I am number  2 .
+## Of  4  workers, I am number  3 .
+## Of  4  workers, I am number  1 .
+## Of  4  workers, I am number  0 .
+## [0.0015121465155362318, 0.00065180430801923422, -0.000977212317921356, 0.001958404534987673]
+</code></pre>
 
 <p>More generally, you can send, receive, broadcast, gather, etc. as with MPI itself.</p>
 
@@ -792,7 +1284,7 @@ load-balanced and does not involve too much communication. </li>
 
 <ul>
 <li>If you have very few tasks, particularly if the tasks take different
-amounts of time, often some processors will be idle and your code
+amounts of time, often some of the processors will be idle and your code
 poorly load-balanced.</li>
 <li>If you have very many tasks and each one takes little time, the communication
 overhead of starting and stopping the tasks will reduce efficiency.</li>

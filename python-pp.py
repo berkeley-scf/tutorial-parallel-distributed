@@ -3,7 +3,7 @@
 import numpy.random
 import pp
 import time
-import pi # provided in pi.py
+import pi_code # provided in pi_code.py
 
 samples_per_slice = 10000000
 num_slices = 24*20
@@ -23,7 +23,7 @@ job_server = pp.Server(ncpus = 0, ppservers = tuple(ppservers), secret = 'mysecr
 inputs = [(i, samples_per_slice) for i in xrange(num_slices)]
 
 t0 = time.time()
-jobs = [job_server.submit(pi.sample, invalue, modules = ('numpy.random',)) for invalue in inputs]
+jobs = [job_server.submit(pi_code.sample, invalue, modules = ('numpy.random',)) for invalue in inputs]
 results = [job() for job in jobs]
 t1 = time.time()
 

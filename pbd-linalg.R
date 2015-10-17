@@ -37,5 +37,4 @@ if(comm.rank()==0) {
     print(timing)
 }
 
-
 finalize()

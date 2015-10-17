@@ -13,7 +13,7 @@ if(comm.rank()==0) {
 
 sm <- comm.timer(out <- pbdApply(x, 1, mean, pbd.mode = 'mw', rank.source = 0))
 if(comm.rank()==0) {
-    print(out[1:5]
+    print(out[1:5])
     print(sm)
 }
 
