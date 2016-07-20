@@ -10,6 +10,7 @@ library(knitr)
 library(stringr)
 read_chunk('sockets.R')
 read_chunk('doMPI.R')
+read_chunk('doSNOW.R')
 read_chunk('mpi.parSapply.R')
 read_chunk('pbd-apply.R')
 read_chunk('pbd-linalg.R')
@@ -176,11 +177,13 @@ Here we'll see the use of high-level packages in R, Python, and Matlab that hide
 
 ## 3.1) R
 
-### 3.1.1) *foreach* with the *doMPI* backend
+### 3.1.1) *foreach* with the *doMPI* and *doSNOW* backends
 
 Just as we used *foreach* in a shared memory context, we can
 use it in a distributed memory context as well, and R will handle
 everything behind the scenes for you. 
+
+#### *doMPI*
 
 Start R through the *mpirun* command as discussed above, either
 as a batch job or for interactive use. We'll only ask for 1 process
@@ -230,6 +233,21 @@ Sidenote: You can use *doMPI* on a single node, which might be useful for avoidi
 some of the conflicts between R's forking functionality and openBLAS that
 can cause R to hang when using *foreach* with *doParallel*.
 
+#### *doSNOW*
+
+The *doSNOW* backend has the advantage that it doesn't need to have MPI installed on the system. MPI can be tricky to install and keep working, so this is an easy approach to using *foreach* across multiple machines.
+
+Simply start R as you usually would. 
+
+Here's R code for using *doSNOW* as the back-end to *foreach*. Make sure to use the `type = "SOCK"` argument or *doSNOW* will actually use MPI behind the scenes. 
+
+```{r, doSNOW, eval=FALSE, cache=TRUE}
+```
+
+#### Loading packages and accessing variables within your parallel tasks
+
+When using *foreach* with multiple machines, you need to use the *.packages* argument (or load the package in the code being run in parallel) to load any packages needed in the code. You do not need to explicitly export variables from the master process to the workers. Rather, *foreach* determines which variables in the global environment of the master process are used in the code being run in parallel and makes copies of those in each worker process. Note that these variables are read-only on the workers and cannot be modified (if you try to do so, you'll notice that *foreach* actually did not make copies of the variables that your code tries to modify). 
+
 ### 3.1.2) Using pbdR
 
 There is a relatively new effort to enhance R's capability for distributed
@@ -256,7 +274,7 @@ Let's see parallel-apply style computations in pbdR.
 Here's some basic syntax for doing a distributed *apply()* on
 a matrix that is on one of the workers. So in this case, the matrix is not initially distributed to the workers -- that is done as part of the *pbdApply* computation. (One can also use *pbdApply* on matrices that are already distributed, and this is of course recommended for large matrices -- see Section 4.) 
 
-As mentinoed above, pbdR code is always run in batch mode, with the same code running on all of the processes. This means that you often need to explicitly build in logic about which process should execute a given piece of code, including print statements. Here the check for `comm.rank() == 0` allows us to only create the matrix and call some print statements on the master node (rank 0).
+As mentioned above, pbdR code is always run in batch mode, with the same code running on all of the processes. This means that you often need to explicitly build in logic about which process should execute a given piece of code, including print statements. Here the check for `comm.rank() == 0` allows us to only create the matrix and call some print statements on the master node (rank 0).
 
 ```{r, pbd-apply, cache=TRUE, eval=FALSE}
 ```
@@ -292,6 +310,7 @@ a character vector with the machine names as the input to *makeCluster()*. A nic
 ```{r, sockets, cache=TRUE}
 ```
 
+Note the use of *clusterExport*, needed to make variables in the master process available to the workers; this involves making a copy of each variable for each worker process. You'd also need to load any packages used in the code being run in parallel in that code. 
 
 ### 3.1.5) The *partools* package
 
@@ -303,7 +322,7 @@ I haven't yet had time to develop any material based on *partools* but hope to i
 
 One way to parallelize tasks across nodes in Python is using the pp package (also useful for parallelizing on a single machine as discussed in the [parallel basics tutorial](https://github.com/berkeley-scf/tutorial-parallel-basics). 
 
-Assuming that the pp package is installed on each node (e.g., `sudo apt-get install install python-pp` on an Ubuntu machine), you need to start up a ppserver process on each node. E.g., if `$nodes` is a UNIX environment variable containing the names of the worker nodes and you want to start 2 workers per node:
+Assuming that the pp package is installed on each node (e.g., `sudo apt-get install python-pp` on an Ubuntu machine), you need to start up a ppserver process on each node. E.g., if `$nodes` is a UNIX environment variable containing the names of the worker nodes and you want to start 2 workers per node:
 
 ```{r, pp-start, engine='bash', eval=FALSE}
 nodes='smeagol radagast beren arwen'

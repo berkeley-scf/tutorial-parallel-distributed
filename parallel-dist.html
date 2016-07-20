@@ -494,7 +494,7 @@ in other readily-accessible software.</p>
 <p>Here&#39;s some basic syntax for doing a distributed <em>apply()</em> on
 a matrix that is on one of the workers. So in this case, the matrix is not initially distributed to the workers &ndash; that is done as part of the <em>pbdApply</em> computation. (One can also use <em>pbdApply</em> on matrices that are already distributed, and this is of course recommended for large matrices &ndash; see Section 4.) </p>
 
-<p>As mentinoed above, pbdR code is always run in batch mode, with the same code running on all of the processes. This means that you often need to explicitly build in logic about which process should execute a given piece of code, including print statements. Here the check for <code>comm.rank() == 0</code> allows us to only create the matrix and call some print statements on the master node (rank 0).</p>
+<p>As mentioned above, pbdR code is always run in batch mode, with the same code running on all of the processes. This means that you often need to explicitly build in logic about which process should execute a given piece of code, including print statements. Here the check for <code>comm.rank() == 0</code> allows us to only create the matrix and call some print statements on the master node (rank 0).</p>
 
 <pre><code class="r"># invoke as mpirun -machinefile .hosts -np 4 Rscript pbd-apply.R &gt; pbd-apply.out
 
@@ -520,9 +520,9 @@ finalize()
 cat pbd-apply.out
 </code></pre>
 
-<pre><code>## [1] -0.05169168 -0.05552842 -0.22260412 -0.21349725 -0.11454628
-##      min     mean      max 
-##  7.75200 17.31525 20.52700
+<pre><code>## [1]  0.05812817 -0.05669169  0.14129043  0.08149985  0.08129939
+##     min    mean     max 
+##  7.2040 15.4505 18.2070
 </code></pre>
 
 <h3>3.1.3) Using parallel apply functionality in Rmpi</h3>
@@ -577,10 +577,10 @@ cat mpi.parSapply.out
 ## &gt; # parallel sapply-type calculations on a vector 
 ## &gt; system.time(out &lt;- mpi.parSapply(x, myfun))
 ##    user  system elapsed 
-##   5.997   5.225  11.463 
+##   5.387   5.430  10.827 
 ## &gt; system.time(out &lt;- mpi.applyLB(x, myfun))
 ##    user  system elapsed 
-##   6.548   4.981  11.638 
+##   5.513   5.242  10.768 
 ## &gt; 
 ## &gt; nrows &lt;- 10000
 ## &gt; x &lt;- matrix(rnorm(nrows*50), nrow = nrows)
@@ -637,7 +637,7 @@ result[1:5]
 
 <p>One way to parallelize tasks across nodes in Python is using the pp package (also useful for parallelizing on a single machine as discussed in the <a href="https://github.com/berkeley-scf/tutorial-parallel-basics">parallel basics tutorial</a>. </p>
 
-<p>Assuming that the pp package is installed on each node (e.g., <code>sudo apt-get install install python-pp</code> on an Ubuntu machine), you need to start up a ppserver process on each node. E.g., if <code>$nodes</code> is a UNIX environment variable containing the names of the worker nodes and you want to start 2 workers per node:</p>
+<p>Assuming that the pp package is installed on each node (e.g., <code>sudo apt-get install python-pp</code> on an Ubuntu machine), you need to start up a ppserver process on each node. E.g., if <code>$nodes</code> is a UNIX environment variable containing the names of the worker nodes and you want to start 2 workers per node:</p>
 
 <pre><code class="bash">nodes=&#39;smeagol radagast beren arwen&#39;
 for node in $nodes; do
@@ -903,10 +903,10 @@ mpirun -machinefile .hosts -np 4 mpiHello
 <pre><code>## smeagol slots=1
 ## radagast slots=1
 ## arwen slots=2
-## Hello from processor 1 of 4 on radagast
-## Hello from processor 2 of 4 on arwen
 ## Hello from processor 3 of 4 on arwen
+## Hello from processor 2 of 4 on arwen
 ## Hello from processor 0 of 4 on smeagol
+## Hello from processor 1 of 4 on radagast
 </code></pre>
 
 <p>To actually write real MPI code, you&#39;ll need to go learn some of the
@@ -919,7 +919,7 @@ and running are as above:</p>
 mpirun -machinefile .hosts -np 4 quad_mpi
 </code></pre>
 
-<pre><code>## 17 October 2015 02:05:02 PM
+<pre><code>## 09 December 2015 03:34:28 PM
 ## 
 ## QUAD_MPI
 ##   C++/MPI version
@@ -933,18 +933,18 @@ mpirun -machinefile .hosts -np 4 quad_mpi
 ## 
 ##   Use MPI to divide the computation among 4 total processes,
 ##   of which one is the master and does not do core computations.
-##   Process 3 contributed MY_TOTAL = 0.000318308
-##   Process 2 contributed MY_TOTAL = 0.00095491
 ##   Process 1 contributed MY_TOTAL = 0.49809
+##   Process 2 contributed MY_TOTAL = 0.00095491
+##   Process 3 contributed MY_TOTAL = 0.000318308
 ## 
 ##   Estimate =       0.4993634591634721
 ##   Error = 7.808701535383378e-08
-##   Time = 9.443312883377075
+##   Time = 10.14991688728333
 ## 
 ## QUAD_MPI:
 ##   Normal end of execution.
 ## 
-## 17 October 2015 02:05:11 PM
+## 09 December 2015 03:34:38 PM
 </code></pre>
 
 <h2>5.3) Using MPI from R via Rmpi or pbdR</h2>
@@ -1043,16 +1043,16 @@ cat Rmpi.out
 ## &gt; mpi.bcast.cmd(y &lt;- 2 * x)
 ## &gt; mpi.remote.exec(print(y))
 ## $slave1
-## [1] 2.52689
+## [1] -1.98614
 ## 
 ## $slave2
-## [1] -1.6820329  0.8934232
+## [1] -1.031524  1.962494
 ## 
 ## $slave3
-## [1]  3.3031596 -2.3544619 -0.5147955
+## [1] -3.090250  1.820568 -1.880863
 ## 
 ## $slave4
-## [1] -0.34978007 -0.03258057 -1.74705907 -2.20813628
+## [1]  1.5440185 -1.5050657  1.6298357  0.5786632
 ## 
 ## &gt; 
 ## &gt; objs &lt;- as.list(c(&#39;x&#39;, &#39;n&#39;))
@@ -1097,23 +1097,23 @@ cat Rmpi.out
 ## &gt; mpi.remote.exec(mpi.send.Robj(y, dest = 0, tag = 1))
 ## $slave1
 ##          used (Mb) gc trigger (Mb) max used (Mb)
-## Ncells 223303 12.0     460000 24.6   350000 18.7
-## Vcells 320694  2.5     786432  6.0   785990  6.0
+## Ncells 225324 12.1     460000 24.6   350000 18.7
+## Vcells 323817  2.5     786432  6.0   786025  6.0
 ## 
 ## $slave2
 ##          used (Mb) gc trigger (Mb) max used (Mb)
-## Ncells 223303 12.0     460000 24.6   350000 18.7
-## Vcells 320695  2.5     786432  6.0   785990  6.0
+## Ncells 225324 12.1     460000 24.6   350000 18.7
+## Vcells 323818  2.5     786432  6.0   786025  6.0
 ## 
 ## $slave3
 ##          used (Mb) gc trigger (Mb) max used (Mb)
-## Ncells 223303 12.0     460000 24.6   350000 18.7
-## Vcells 320697  2.5     786432  6.0   785990  6.0
+## Ncells 225324 12.1     460000 24.6   350000 18.7
+## Vcells 323820  2.5     786432  6.0   786025  6.0
 ## 
 ## $slave4
 ##          used (Mb) gc trigger (Mb) max used (Mb)
-## Ncells 223303 12.0     460000 24.6   350000 18.7
-## Vcells 320697  2.5     786432  6.0   785990  6.0
+## Ncells 225324 12.1     460000 24.6   350000 18.7
+## Vcells 323820  2.5     786432  6.0   786025  6.0
 ## 
 ## &gt; results = list()
 ## &gt; for(i in 1:(mpi.comm.size()-1)){
@@ -1122,16 +1122,16 @@ cat Rmpi.out
 ## &gt;   
 ## &gt; print(results)
 ## [[1]]
-## [1] 2.52689
+## [1] -1.98614
 ## 
 ## [[2]]
-## [1] -1.6820329  0.8934232
+## [1] -1.031524  1.962494
 ## 
 ## [[3]]
-## [1]  3.3031596 -2.3544619 -0.5147955
+## [1] -3.090250  1.820568 -1.880863
 ## 
 ## [[4]]
-## [1] -0.34978007 -0.03258057 -1.74705907 -2.20813628
+## [1]  1.5440185 -1.5050657  1.6298357  0.5786632
 ## 
 ## &gt; 
 ## &gt; mpi.close.Rslaves()
@@ -1237,10 +1237,10 @@ if id == 0:
 <pre><code class="bash">mpirun -machinefile .hosts -np 4 python example-mpi.py 
 </code></pre>
 
-<pre><code>## Of  4  workers, I am number  2 .
-## Of  4  workers, I am number  3 .
-## Of  4  workers, I am number  1 .
+<pre><code>## Of  4  workers, I am number  3 .
 ## Of  4  workers, I am number  0 .
+## Of  4  workers, I am number  1 .
+## Of  4  workers, I am number  2 .
 ## [0.0015121465155362318, 0.00065180430801923422, -0.000977212317921356, 0.001958404534987673]
 </code></pre>
 
