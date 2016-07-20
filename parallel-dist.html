@@ -213,7 +213,7 @@ hr {
 
 <p>In the future, a screencast of the material may accompany this document.</p>
 
-<p>We&#39;ll use a virtual machine developed here at Berkeley, <a href="http://bce.berkeley.edu">the Berkeley Common Environment (BCE)</a>. BCE is a virtual Linux machine - basically it is a Linux computer that you can run within your own computer, regardless of whether you are using Windows, Mac, or Linux. This provides a common environment so that things behave the same for all of us. At the moment, I advise using the BCE-2015-spring VM and starting up a virtual cluster using <em>StarCluster</em>, following the instructions at the <a href="http://bce.berkeley.edu/install.html">BCE install page</a>. Starting up BCE-based clusters using BCE-2015-fall is in flux at the moment; we hope to firm this up during fall semester, 2015.</p>
+<p>We&#39;ll use a virtual machine developed here at Berkeley, <a href="http://bce.berkeley.edu">the Berkeley Common Environment (BCE)</a>. BCE is a virtual Linux machine - basically it is a Linux computer that you can run within your own computer, regardless of whether you are using Windows, Mac, or Linux. This provides a common environment so that things behave the same for all of us. At the moment, I advise using the BCE-2015-spring VM and starting up a virtual cluster using <em>StarCluster</em>, following the instructions at the <a href="http://bce.berkeley.edu/install.html">BCE install page</a>. The better way to use clusters on EC2 is to use CfnCluster (also described in the above link). The code below should work with the BCE CfnCluster image, but I haven&#39;t yet tested it out for the material described here. </p>
 
 <p>This tutorial assumes you have a working knowledge of either R, Python, or C. </p>
 
@@ -328,9 +328,9 @@ if we want multiple processes on a single machine. Note that on a Starcluster-ba
 </code></pre>
 
 <pre><code>## smeagol
+## arwen
+## arwen
 ## radagast
-## arwen
-## arwen
 </code></pre>
 
 <p>Alternatively, we can create a file with the relevant information.</p>
@@ -375,11 +375,13 @@ use the -machinefile flag when starting R or Python or a C program via mpirun.</
 
 <h2>3.1) R</h2>
 
-<h3>3.1.1) <em>foreach</em> with the <em>doMPI</em> backend</h3>
+<h3>3.1.1) <em>foreach</em> with the <em>doMPI</em> and <em>doSNOW</em> backends</h3>
 
 <p>Just as we used <em>foreach</em> in a shared memory context, we can
 use it in a distributed memory context as well, and R will handle
 everything behind the scenes for you. </p>
+
+<h4><em>doMPI</em></h4>
 
 <p>Start R through the <em>mpirun</em> command as discussed above, either
 as a batch job or for interactive use. We&#39;ll only ask for 1 process
@@ -466,6 +468,41 @@ does not seem to function (perhaps it does on other systems).</p>
 some of the conflicts between R&#39;s forking functionality and openBLAS that
 can cause R to hang when using <em>foreach</em> with <em>doParallel</em>.</p>
 
+<h4><em>doSNOW</em></h4>
+
+<p>The <em>doSNOW</em> backend has the advantage that it doesn&#39;t need to have MPI installed on the system. MPI can be tricky to install and keep working, so this is an easy approach to using <em>foreach</em> across multiple machines.</p>
+
+<p>Simply start R as you usually would. </p>
+
+<p>Here&#39;s R code for using <em>doSNOW</em> as the back-end to <em>foreach</em>. Make sure to use the <code>type = &quot;SOCK&quot;</code> argument or <em>doSNOW</em> will actually use MPI behind the scenes. </p>
+
+<pre><code class="r">library(doSNOW)
+machines = c(rep(&quot;beren.berkeley.edu&quot;, 1),
+    rep(&quot;gandalf.berkeley.edu&quot;, 1),
+    rep(&quot;arwen.berkeley.edu&quot;, 2))
+
+cl = makeCluster(machines, type = &quot;SOCK&quot;)
+cl
+
+registerDoSNOW(cl)
+
+fun = function(i)
+  out = mean(rnorm(n))
+
+nTasks &lt;- 120
+
+print(system.time(out &lt;- foreach(i = 1:nTasks) %dopar% {
+    outSub &lt;- fun()
+    outSub # this will become part of the out object
+}))
+
+stopCluster(cl)  # good practice, but not strictly necessary
+</code></pre>
+
+<h4>Loading packages and accessing variables within your parallel tasks</h4>
+
+<p>When using <em>foreach</em> with multiple machines, you need to use the <em>.packages</em> argument (or load the package in the code being run in parallel) to load any packages needed in the code. You do not need to explicitly export variables from the master process to the workers. Rather, <em>foreach</em> determines which variables in the global environment of the master process are used in the code being run in parallel and makes copies of those in each worker process. Note that these variables are read-only on the workers and cannot be modified (if you try to do so, you&#39;ll notice that <em>foreach</em> actually did not make copies of the variables that your code tries to modify). </p>
+
 <h3>3.1.2) Using pbdR</h3>
 
 <p>There is a relatively new effort to enhance R&#39;s capability for distributed
@@ -520,9 +557,9 @@ finalize()
 cat pbd-apply.out
 </code></pre>
 
-<pre><code>## [1]  0.05812817 -0.05669169  0.14129043  0.08149985  0.08129939
-##     min    mean     max 
-##  7.2040 15.4505 18.2070
+<pre><code>## [1]  0.23915076 -0.01871984 -0.25042348  0.11462817  0.07863492
+##    min   mean    max 
+##  5.895 13.513 16.054
 </code></pre>
 
 <h3>3.1.3) Using parallel apply functionality in Rmpi</h3>
@@ -577,10 +614,10 @@ cat mpi.parSapply.out
 ## &gt; # parallel sapply-type calculations on a vector 
 ## &gt; system.time(out &lt;- mpi.parSapply(x, myfun))
 ##    user  system elapsed 
-##   5.387   5.430  10.827 
+##   4.883   4.633   9.528 
 ## &gt; system.time(out &lt;- mpi.applyLB(x, myfun))
 ##    user  system elapsed 
-##   5.513   5.242  10.768 
+##   4.750   4.418   9.180 
 ## &gt; 
 ## &gt; nrows &lt;- 10000
 ## &gt; x &lt;- matrix(rnorm(nrows*50), nrow = nrows)
@@ -601,18 +638,19 @@ a character vector with the machine names as the input to <em>makeCluster()</em>
 
 <pre><code class="r">library(parallel)
 
-machines = c(rep(&quot;smeagol.berkeley.edu&quot;, 1),
+machines = c(rep(&quot;beren.berkeley.edu&quot;, 1),
     rep(&quot;gandalf.berkeley.edu&quot;, 1),
     rep(&quot;arwen.berkeley.edu&quot;, 2))
 cl = makeCluster(machines)
 cl
 </code></pre>
 
-<pre><code>## socket cluster with 4 nodes on hosts &#39;smeagol.berkeley.edu&#39;, &#39;gandalf.berkeley.edu&#39;, &#39;arwen.berkeley.edu&#39;
+<pre><code>## socket cluster with 4 nodes on hosts &#39;beren.berkeley.edu&#39;, &#39;gandalf.berkeley.edu&#39;, &#39;arwen.berkeley.edu&#39;
 </code></pre>
 
 <pre><code class="r">n = 1e7
 clusterExport(cl, c(&#39;n&#39;))
+
 fun = function(i)
   out = mean(rnorm(n))
 
@@ -621,11 +659,13 @@ result &lt;- parSapply(cl, 1:20, fun)
 result[1:5]
 </code></pre>
 
-<pre><code>## [1]  4.172127e-05  1.300298e-04 -7.128446e-04 -4.530147e-04 -3.676025e-04
+<pre><code>## [1]  1.431600e-04  6.146156e-04 -8.718859e-05  8.976951e-05  1.152365e-04
 </code></pre>
 
 <pre><code class="r">stopCluster(cl) # not strictly necessary
 </code></pre>
+
+<p>Note the use of <em>clusterExport</em>, needed to make variables in the master process available to the workers; this involves making a copy of each variable for each worker process. You&#39;d also need to load any packages used in the code being run in parallel in that code. </p>
 
 <h3>3.1.5) The <em>partools</em> package</h3>
 
@@ -903,9 +943,9 @@ mpirun -machinefile .hosts -np 4 mpiHello
 <pre><code>## smeagol slots=1
 ## radagast slots=1
 ## arwen slots=2
+## Hello from processor 0 of 4 on smeagol
 ## Hello from processor 3 of 4 on arwen
 ## Hello from processor 2 of 4 on arwen
-## Hello from processor 0 of 4 on smeagol
 ## Hello from processor 1 of 4 on radagast
 </code></pre>
 
@@ -919,7 +959,7 @@ and running are as above:</p>
 mpirun -machinefile .hosts -np 4 quad_mpi
 </code></pre>
 
-<pre><code>## 09 December 2015 03:34:28 PM
+<pre><code>## 20 July 2016 04:13:39 PM
 ## 
 ## QUAD_MPI
 ##   C++/MPI version
@@ -934,17 +974,17 @@ mpirun -machinefile .hosts -np 4 quad_mpi
 ##   Use MPI to divide the computation among 4 total processes,
 ##   of which one is the master and does not do core computations.
 ##   Process 1 contributed MY_TOTAL = 0.49809
-##   Process 2 contributed MY_TOTAL = 0.00095491
 ##   Process 3 contributed MY_TOTAL = 0.000318308
+##   Process 2 contributed MY_TOTAL = 0.00095491
 ## 
 ##   Estimate =       0.4993634591634721
 ##   Error = 7.808701535383378e-08
-##   Time = 10.14991688728333
+##   Time = 7.433800935745239
 ## 
 ## QUAD_MPI:
 ##   Normal end of execution.
 ## 
-## 09 December 2015 03:34:38 PM
+## 20 July 2016 04:13:47 PM
 </code></pre>
 
 <h2>5.3) Using MPI from R via Rmpi or pbdR</h2>
@@ -1043,22 +1083,25 @@ cat Rmpi.out
 ## &gt; mpi.bcast.cmd(y &lt;- 2 * x)
 ## &gt; mpi.remote.exec(print(y))
 ## $slave1
-## [1] -1.98614
+## [1] -0.1464182
 ## 
 ## $slave2
-## [1] -1.031524  1.962494
+## [1] -2.434702  3.806256
 ## 
 ## $slave3
-## [1] -3.090250  1.820568 -1.880863
+## [1]  2.1757128 -0.5657231 -4.8735037
 ## 
 ## $slave4
-## [1]  1.5440185 -1.5050657  1.6298357  0.5786632
+## [1] -1.1458382 -2.8494085 -3.4312651  0.3281967
 ## 
 ## &gt; 
 ## &gt; objs &lt;- as.list(c(&#39;x&#39;, &#39;n&#39;))
 ## &gt; # next command sends value of objs on _master_ as argument to rm
 ## &gt; mpi.remote.exec(do.call, rm, objs)
-## $slave2
+## $slave3
+## [1] 0
+## 
+## $slave4
 ## [1] 0
 ## 
 ## &gt; 
@@ -1097,23 +1140,23 @@ cat Rmpi.out
 ## &gt; mpi.remote.exec(mpi.send.Robj(y, dest = 0, tag = 1))
 ## $slave1
 ##          used (Mb) gc trigger (Mb) max used (Mb)
-## Ncells 225324 12.1     460000 24.6   350000 18.7
-## Vcells 323817  2.5     786432  6.0   786025  6.0
+## Ncells 228004 12.2     460000 24.6   350000 18.7
+## Vcells 330158  2.6     786432  6.0   786420  6.0
 ## 
 ## $slave2
 ##          used (Mb) gc trigger (Mb) max used (Mb)
-## Ncells 225324 12.1     460000 24.6   350000 18.7
-## Vcells 323818  2.5     786432  6.0   786025  6.0
+## Ncells 228004 12.2     460000 24.6   350000 18.7
+## Vcells 330159  2.6     786432  6.0   786420  6.0
 ## 
 ## $slave3
 ##          used (Mb) gc trigger (Mb) max used (Mb)
-## Ncells 225324 12.1     460000 24.6   350000 18.7
-## Vcells 323820  2.5     786432  6.0   786025  6.0
+## Ncells 228004 12.2     460000 24.6   350000 18.7
+## Vcells 330161  2.6     786432  6.0   786420  6.0
 ## 
 ## $slave4
 ##          used (Mb) gc trigger (Mb) max used (Mb)
-## Ncells 225324 12.1     460000 24.6   350000 18.7
-## Vcells 323820  2.5     786432  6.0   786025  6.0
+## Ncells 228004 12.2     460000 24.6   350000 18.7
+## Vcells 330161  2.6     786432  6.0   786420  6.0
 ## 
 ## &gt; results = list()
 ## &gt; for(i in 1:(mpi.comm.size()-1)){
@@ -1122,16 +1165,16 @@ cat Rmpi.out
 ## &gt;   
 ## &gt; print(results)
 ## [[1]]
-## [1] -1.98614
+## [1] -0.1464182
 ## 
 ## [[2]]
-## [1] -1.031524  1.962494
+## [1] -2.434702  3.806256
 ## 
 ## [[3]]
-## [1] -3.090250  1.820568 -1.880863
+## [1]  2.1757128 -0.5657231 -4.8735037
 ## 
 ## [[4]]
-## [1]  1.5440185 -1.5050657  1.6298357  0.5786632
+## [1] -1.1458382 -2.8494085 -3.4312651  0.3281967
 ## 
 ## &gt; 
 ## &gt; mpi.close.Rslaves()
@@ -1237,9 +1280,9 @@ if id == 0:
 <pre><code class="bash">mpirun -machinefile .hosts -np 4 python example-mpi.py 
 </code></pre>
 
-<pre><code>## Of  4  workers, I am number  3 .
-## Of  4  workers, I am number  0 .
+<pre><code>## Of  4  workers, I am number  0 .
 ## Of  4  workers, I am number  1 .
+## Of  4  workers, I am number  3 .
 ## Of  4  workers, I am number  2 .
 ## [0.0015121465155362318, 0.00065180430801923422, -0.000977212317921356, 0.001958404534987673]
 </code></pre>

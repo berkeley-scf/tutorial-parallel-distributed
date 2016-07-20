@@ -27,7 +27,7 @@ This tutorial covers strategies for using parallel processing in R, Python, Matl
 
 In the future, a screencast of the material may accompany this document.
 
-We'll use a virtual machine developed here at Berkeley, [the Berkeley Common Environment (BCE)](http://bce.berkeley.edu). BCE is a virtual Linux machine - basically it is a Linux computer that you can run within your own computer, regardless of whether you are using Windows, Mac, or Linux. This provides a common environment so that things behave the same for all of us. At the moment, I advise using the BCE-2015-spring VM and starting up a virtual cluster using *StarCluster*, following the instructions at the [BCE install page](http://bce.berkeley.edu/install.html). Starting up BCE-based clusters using BCE-2015-fall is in flux at the moment; we hope to firm this up during fall semester, 2015.
+We'll use a virtual machine developed here at Berkeley, [the Berkeley Common Environment (BCE)](http://bce.berkeley.edu). BCE is a virtual Linux machine - basically it is a Linux computer that you can run within your own computer, regardless of whether you are using Windows, Mac, or Linux. This provides a common environment so that things behave the same for all of us. At the moment, I advise using the BCE-2015-spring VM and starting up a virtual cluster using *StarCluster*, following the instructions at the [BCE install page](http://bce.berkeley.edu/install.html). The better way to use clusters on EC2 is to use CfnCluster (also described in the above link). The code below should work with the BCE CfnCluster image, but I haven't yet tested it out for the material described here. 
 
 This tutorial assumes you have a working knowledge of either R, Python, or C. 
 
