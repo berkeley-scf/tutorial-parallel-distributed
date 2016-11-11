@@ -17,6 +17,7 @@ read_chunk('pbd-linalg.R')
 read_chunk('pbd-mpi.R')
 read_chunk('Rmpi.R')
 read_chunk('pbd-construct.R')
+read_chunk('python-ipyparallel.py')
 read_chunk('python-pp.py')
 read_chunk('example-mpi.py')
 ```
@@ -320,7 +321,45 @@ I haven't yet had time to develop any material based on *partools* but hope to i
 
 ## 3.2) Python
 
-One way to parallelize tasks across nodes in Python is using the pp package (also useful for parallelizing on a single machine as discussed in the [parallel basics tutorial](https://github.com/berkeley-scf/tutorial-parallel-basics). 
+### 3.2.1) iPython parallel
+
+One can use iPython's parallelization tools in a context with multiple nodes, though the setup to get the worker processes is a bit more involved when you have multiple nodes. For details on using iPython parallel on a single node, see the [parallel basics tutorial appendix](https://github.com/berkeley-scf/tutorial-parallel-basics). 
+
+If we are using the SLURM scheduling software, here's how we start up the worker processes:
+
+```{r, ipyparallel-setup, engine='bash', eval=FALSE}
+ipcontroller --ip='*' &
+sleep 25
+# next line will start as many ipengines as we have SLURM tasks 
+#   because srun is a SLURM command
+srun ipengine &  
+sleep 45  # wait until all engines have successfully started
+```
+
+
+We can then run iPython to split up our computational tasks across the engines.
+
+```{r, ipyparallel, engine='python', eval=FALSE}
+```
+
+To finish up, we need to shut down the cluster of workers:
+```{r, engine='bash', eval=FALSE}
+ipcluster stop
+```
+
+To start the engines in a context outside of using slurm (provided all machines share a filesystem), you should be able ssh to each machine and run `ipengine &` for as many worker processes as you want to start as follows. In some, but not all cases (depending on how the network is set up) you may not need the `--location` flag. 
+
+{r, ipyparallel-setup2, engine='bash', eval=FALSE}
+ipcontroller --ip='*' --location=URL_OF_THIS_MACHINE &
+sleep 25
+nengines=8
+ssh other_host "for (( i = 0; i < ${nengines}; i++ )); do ipengine & done"
+sleep 45  # wait until all engines have successfully started
+```
+
+### 3.2.2) *pp* package
+
+Another way to parallelize across multiple nodes that uses more manual setup and doesn't integrate as well with scheduling software like SLURM is to use the pp package (also useful for parallelizing on a single machine as discussed in the [parallel basics tutorial appendix](https://github.com/berkeley-scf/tutorial-parallel-basics). 
 
 Assuming that the pp package is installed on each node (e.g., `sudo apt-get install python-pp` on an Ubuntu machine), you need to start up a ppserver process on each node. E.g., if `$nodes` is a UNIX environment variable containing the names of the worker nodes and you want to start 2 workers per node:
 
@@ -357,7 +396,6 @@ for node in $nodes; do
 done
 ```
 
-*ipython* also provides parallelization capabilities. [Here is some info from the IPython documentation](https://ipython.org/ipython-doc/3/parallel/index.html), but I haven't explored this yet. 
 
 ## 3.3) Matlab
 
