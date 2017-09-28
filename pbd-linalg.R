@@ -8,7 +8,7 @@ n <- 4096*2
 # you may want to prevent threading of the linear algebra:
 # library(RhpcBLASctl)
 # blas_set_num_threads(1)
-# (or do by passing OMP_NUM_THREADS to mpirun
+# (or do by passing OMP_NUM_THREADS to mpirun)
 
 init.grid()
 

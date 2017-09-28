@@ -1,7 +1,14 @@
 ## @knitr mpi.parSapply
 
+## you should have invoked R as:
+## mpirun -machinefile .hosts -np 1 R CMD BATCH --no-save mpi.parSapply.R mpi.parSapply.out
+## unless running within a SLURM job, in which case you should do:
+## mpirun R CMD BATCH --no-save mpi.parSapply.R mpi.parSapply.out
+
 library(Rmpi)
-mpi.spawn.Rslaves()
+## on my system, this fails unless explicitly
+## ask for one fewer slave than total number of slots across hosts
+mpi.spawn.Rslaves(nslaves = mpi.universe.size()-1)
 
 myfun <- function(i) {
       set.seed(i)

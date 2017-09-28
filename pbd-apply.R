@@ -1,6 +1,9 @@
 ## @knitr pbd-apply
 
-# invoke as mpirun -machinefile .hosts -np 4 Rscript pbd-apply.R > pbd-apply.out
+## you should have invoked R as:
+## mpirun -machinefile .hosts -np 4 R CMD BATCH --no-save pbd-apply.R pbd-apply.out
+## unless running within a SLURM job, in which case you should do:
+## mpirun R CMD BATCH --no-save pbd-apply.R pbd-apply.out
 
 library(pbdMPI, quiet = TRUE )
 init()

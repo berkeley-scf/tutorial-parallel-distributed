@@ -26,9 +26,9 @@ read_chunk('example-mpi.py')
 
 This tutorial covers strategies for using parallel processing in R, Python, Matlab (briefly), and C on multiple machines, in which the various processes must interact across a network linking the machines. 
 
-In the future, a screencast of the material may accompany this document.
+This tutorial assumes you have access to two or more servers on which to parallelize your computation, potentially via a Linux cluster managed via scheduling software such as SLURM, and that MPI, R, and Python are installed on the machines. 
 
-We'll use a virtual machine developed here at Berkeley, [the Berkeley Common Environment (BCE)](http://bce.berkeley.edu). BCE is a virtual Linux machine - basically it is a Linux computer that you can run within your own computer, regardless of whether you are using Windows, Mac, or Linux. This provides a common environment so that things behave the same for all of us. At the moment, I advise using the BCE-2015-spring VM and starting up a virtual cluster using *StarCluster*, following the instructions at the [BCE install page](http://bce.berkeley.edu/install.html). The better way to use clusters on EC2 is to use CfnCluster (also described in the above link). The code below should work with the BCE CfnCluster image, but I haven't yet tested it out for the material described here. 
+Alternatively, you may be able to start a virtual cluster on Amazon Web Services using CfnCluster. If using CfnCluster, we recommend using a virtual machine developed here at Berkeley, [the Berkeley Common Environment (BCE)](http://bce.berkeley.edu). BCE is a virtual Linux machine - basically it is a Linux computer that you can run within your own computer, regardless of whether you are using Windows, Mac, or Linux. This provides a common environment so that things behave the same for all of us. Please follow the instructions related to CfnCluster at the [BCE install page](http://bce.berkeley.edu/install.html). 
 
 This tutorial assumes you have a working knowledge of either R, Python, or C. 
 
@@ -117,12 +117,12 @@ a large number of simple processing units for massively parallel calculation.
 The idea of general purpose GPU (GPGPU) computing is to exploit this
 capability for general computation. 
 
-In spring 2014, I gave a [workshop on using GPUs](http://statistics.berkeley.edu/computing/gpu).
+In spring 2016, I gave a [workshop on using GPUs](http://statistics.berkeley.edu/computing/gpu).
 
 ### Spark and Hadoop
 
 Spark and Hadoop are systems for implementing computations in a distributed
-memory environment, using the MapReduce approach. In fall 2014, I gave a [workshop on using Spark](http://statistics.berkeley.edu/computing/gpu).
+memory environment, using the MapReduce approach. 
 
 # 2) Starting MPI-based jobs
 
@@ -130,10 +130,15 @@ Code that explicitly uses MPI, as well as code using MPI under the hood, such as
 
 The basic requirements for starting such a job are that you specify the number of processes you want to run and that you indicate what machines those processes should run on. Those machines should be networked together such that MPI can ssh to the various machines without any password required.
 
+# 2.1) Running an MPI job under SLURM
+
+
+
 There are two ways to tell *mpirun* the machines on which to run the worker processes.
 
 First, we can pass the machine names directly, replicating the name
-if we want multiple processes on a single machine. Note that on a Starcluster-based EC2 VM, the nodes are named master, node001, node002, etc., and the .hosts file will already exist if you follow the BCE/Starcluster instructions given on the BCE install page. 
+if we want multiple processes on a single machine. In the example here, these are machines accessible to me, and you would need to replace those names with the names of machines you have access to. You'll need to [set up SSH keys](http://statistics.berkeley.edu/computing/sshkeys) so that you can access the machines without a password.
+
 
 ```{r, mpirun1, engine='bash'}
 mpirun --host smeagol,radagast,arwen,arwen -np 4 hostname
@@ -148,14 +153,14 @@ echo 'arwen slots=2' >> .hosts
 mpirun -machinefile .hosts -np 4 hostname
 ```
 
-(I've been having some MPI difficulties on a few of our servers, so in some of the results later in this tutorial, you'll see that the examples may use different machines than those indicated here.)
-
-An alternative is just to manually duplicate host names to indicate the number of slots (though this may not work exactly with all versions of openMPI):
+**If you are running your code as part of a job submitted to SLURM, you generally won't need to pass the *machinefile* or *np* arguments as MPI will get that information from SLURM.** So you can simply do:
 
 ```
-echo -e 'smeagol\nradagast\narwen\narwen' > .hosts
-cat .hosts
+mpirun hostname
 ```
+
+Note that on a CfnCluster-based EC2 VM, you could run your job through SLURM, or you can directly use the node names, which can be seen by invoking `sinfo` and looking at the *NODELIST* column. 
+
 
 To limit the number of threads for each process, we can tell *mpirun*
 to export the value of *OMP_NUM_THREADS* to the processes. E.g., calling a C program, *quad_mpi*:
@@ -165,12 +170,12 @@ export OMP_NUM_THREADS=2
 mpirun -machinefile .hosts -np 4 -x OMP_NUM_THREADS quad_mpi
 ```
 
-In the examples above, I illustrated with a bash command and with a compiled C program, but one would similarly
+In the examples above, I illustrated with a simple bash command (hostname) and with a compiled C program, but one would similarly
 use the -machinefile flag when starting R or Python or a C program via mpirun.
 
 There are additional details involved in carefully controlling how processes are allocated to nodes, but the default arguments for mpirun should do a reasonable job in many situations. 
 
-Also, I've had inconsistent results in terms of having the correct number of workers start up on each of the machines specified, depending on whether I specify the number of workers implicitly via the hosts information, explicitly via -np or both. You may want to check that the right number of workers is running on each host. 
+Also, I've had inconsistent results in terms of having the correct number of workers start up on each of the machines specified, depending on whether I specify the number of workers implicitly via the hosts information (without specifying -np), explicitly via -np or both. You may want to check that the right number of workers is running on each host. 
 
 # 3) Basic parallelization across nodes
 
@@ -201,12 +206,6 @@ up one fewer worker processes than the number of hosts times slots given to mpir
 so your R code will be more portable. 
 
 ```{r, doMPI, eval=FALSE, cache=TRUE}
-```
-
-```{r, change-hosts, engine='bash', include=FALSE}
-# having some issues with the hosts above, so change to these for Rmpi-based stuff
-echo 'scf-sm10 slots=2' > .hosts
-echo 'scf-sm11 slots=2' >> .hosts
 ```
 
 ```{r, doMPI-test, engine='bash'}
@@ -251,7 +250,7 @@ When using *foreach* with multiple machines, you need to use the *.packages* arg
 
 ### 3.1.2) Using pbdR
 
-There is a relatively new effort to enhance R's capability for distributed
+There is a project to enhance R's capability for distributed
 memory processing called [pbdR](http://r-pbd.org). For an extensive tutorial, see the
 [pbdDEMO vignette](https://github.com/wrathematics/pbdDEMO/blob/master/inst/doc/pbdDEMO-guide.pdf?raw=true).
  *pbdR* is designed for
@@ -287,6 +286,9 @@ mpirun -machinefile .hosts -np 4 Rscript pbd-apply.R > pbd-apply.out
 cat pbd-apply.out
 ```
 
+In this case it's a fair amount slower to parallelize the calculation than just to do it in R using *rowSums()*, because of the overhead of communication (including passing the data) with the workers.
+
+
 ### 3.1.3) Using parallel apply functionality in Rmpi
 
 *Rmpi* is a package that provides MPI capabilities from R, including low-level MPI type calls (see Section 5). It also provides high-level wrapper functions that use MPI behind the scenes, including parallel apply functionality for operating on lists (and vectors) with functions such as *mpi.parSapply*. 
@@ -301,7 +303,7 @@ mpirun -machinefile .hosts -np 1 R CMD BATCH -q --no-save mpi.parSapply.R mpi.pa
 cat mpi.parSapply.out
 ```
 
-In some cases, it may be useful *job.num* when the number of tasks is bigger than the number of worker processes to ensure load-balancing.
+In some cases, it may be useful to specify *job.num* when the number of tasks is bigger than the number of worker processes to ensure load-balancing.
 
 ### 3.1.4) Using sockets
 
@@ -315,15 +317,15 @@ Note the use of *clusterExport*, needed to make variables in the master process 
 
 ### 3.1.5) The *partools* package
 
-*partools* is a new package developed by Norm Matloff at UC-Davis. He has the perspective that Spark/Hadoop are not the right tools in many cases when doing statistics-related work and has developed some simple tools for parallelizing computation across multiple nodes, also referred to as *Snowdoop*. The tools make use of the key idea in Hadoop of a distributed file system and distributed data objects but avoid the complications of trying to ensure fault tolerance, which is critical only on very large clusters of machines.
+*partools* is a somewhat new package developed by Norm Matloff at UC-Davis. He has the perspective that Spark/Hadoop are not the right tools in many cases when doing statistics-related work and has developed some simple tools for parallelizing computation across multiple nodes, also referred to as *Snowdoop*. The tools make use of the key idea in Hadoop of a distributed file system and distributed data objects but avoid the complications of trying to ensure fault tolerance, which is critical only on very large clusters of machines.
 
-I haven't yet had time to develop any material based on *partools* but hope to in the future. 
+I won't go into details, but *partools* allows you to split up your data across multiple nodes and then read the data into R in parallel across R sessions running on those nodes, all controlled from a single master R session. You can then do operations on the subsets and gather results back to the master session as needed. One point that confused me in the *partools* vignette is that it shows how to split up a dataset that you can read into your R session, but it's not clear what one does if the dataset is too big to read into a single R session. 
 
 ## 3.2) Python
 
-### 3.2.1) iPython parallel
+### 3.2.1) IPython parallel
 
-One can use iPython's parallelization tools in a context with multiple nodes, though the setup to get the worker processes is a bit more involved when you have multiple nodes. For details on using iPython parallel on a single node, see the [parallel basics tutorial appendix](https://github.com/berkeley-scf/tutorial-parallel-basics). 
+One can use IPython's parallelization tools in a context with multiple nodes, though the setup to get the worker processes is a bit more involved when you have multiple nodes. For details on using IPython parallel on a single node, see the [parallel basics tutorial appendix](https://github.com/berkeley-scf/tutorial-parallel-basics). 
 
 If we are using the SLURM scheduling software, here's how we start up the worker processes:
 
@@ -337,7 +339,7 @@ sleep 45  # wait until all engines have successfully started
 ```
 
 
-We can then run iPython to split up our computational tasks across the engines.
+We can then run IPython to split up our computational tasks across the engines.
 
 ```{r, ipyparallel, engine='python', eval=FALSE}
 ```
@@ -349,7 +351,7 @@ ipcluster stop
 
 To start the engines in a context outside of using slurm (provided all machines share a filesystem), you should be able ssh to each machine and run `ipengine &` for as many worker processes as you want to start as follows. In some, but not all cases (depending on how the network is set up) you may not need the `--location` flag. 
 
-{r, ipyparallel-setup2, engine='bash', eval=FALSE}
+```{r, ipyparallel-setup2, engine='bash', eval=FALSE}
 ipcontroller --ip='*' --location=URL_OF_THIS_MACHINE &
 sleep 25
 nengines=8
@@ -372,7 +374,7 @@ for node in $nodes; do
 done
 ```
 
-Now in our Python code we create a server object and submit jobs to the server object, which manages the farming out of the tasks. Note that this will run interactively in iPython or as a script from UNIX, but there have been times where I was not able to run it interactively in the base Python interpreter. Also note that while we are illustrating this as basically another parallelized for loop, the individual jobs can be whatever calculations you want, so the  function (in this case it's always *pi.sample*) could change from job to job.
+Now in our Python code we create a server object and submit jobs to the server object, which manages the farming out of the tasks. Note that this will run interactively in IPython or as a script from UNIX, but there have been times where I was not able to run it interactively in the base Python interpreter. Also note that while we are illustrating this as basically another parallelized for loop, the individual jobs can be whatever calculations you want, so the  function (in this case it's always *pi.sample*) could change from job to job.
 
 ```{r, python-pp, engine='python', eval=FALSE}
 ```
@@ -474,7 +476,7 @@ from column-wise blocks with this syntax works correctly.
 ## 5.1) MPI Overview
 
 There are multiple MPI implementations, of which *openMPI* and
-*mpich* are very common. *openMPI* is on BCE, and we'll use that.
+*mpich* are very common. *openMPI* is quite common, and we'll use that.
 
 In MPI programming, the same code runs on all the machines. This is
 called SPMD (single program, multiple data). As we saw a bit with the pbdR code, one
@@ -547,11 +549,6 @@ cat .hosts # what hosts do I expect it to run on?
 mpirun -machinefile .hosts -np 4 mpiHello
 ```
 
-```{r, change-hosts2, engine='bash', include=FALSE}
-# having some issues with the hosts above, so change to these for Rmpi-based stuff
-echo 'scf-sm10 slots=2' > .hosts
-echo 'scf-sm11 slots=2' >> .hosts
-```
 
 
 To actually write real MPI code, you'll need to go learn some of the

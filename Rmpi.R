@@ -3,9 +3,11 @@
 # example syntax of standard MPI functions
 
 library(Rmpi)
-# by default will start one fewer workers than processes
-# saving one for the master
-mpi.spawn.Rslaves()
+## by default this should start one fewer workers than processes
+## saving one for the master
+## but on my system, this fails unless explicitly
+## ask for one fewer slave than total number of slots across hosts
+mpi.spawn.Rslaves(nslaves = mpi.universe.size()-1)
 
 n = 5
 mpi.bcast.Robj2slave(n)
