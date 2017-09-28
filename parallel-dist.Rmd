@@ -115,9 +115,10 @@ GPUs (Graphics Processing Units) are processing units originally designed
 for rendering graphics on a computer quickly. This is done by having
 a large number of simple processing units for massively parallel calculation.
 The idea of general purpose GPU (GPGPU) computing is to exploit this
-capability for general computation. 
+capability for general computation. In spring 2016, I gave a [workshop on using GPUs](http://statistics.berkeley.edu/computing/gpu).
 
-In spring 2016, I gave a [workshop on using GPUs](http://statistics.berkeley.edu/computing/gpu).
+Most researchers don't program for a GPU directly but rather use software (often machine learning software such as Tensorflow or Caffe) that has been programmed to take advantage of a GPU if one is available.
+
 
 ### Spark and Hadoop
 

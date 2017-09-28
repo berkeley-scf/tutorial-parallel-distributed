@@ -304,9 +304,9 @@ overwrite places in memory that are used by other cores. Threading is a form of 
 for rendering graphics on a computer quickly. This is done by having
 a large number of simple processing units for massively parallel calculation.
 The idea of general purpose GPU (GPGPU) computing is to exploit this
-capability for general computation. </p>
+capability for general computation. In spring 2016, I gave a <a href="http://statistics.berkeley.edu/computing/gpu">workshop on using GPUs</a>.</p>
 
-<p>In spring 2016, I gave a <a href="http://statistics.berkeley.edu/computing/gpu">workshop on using GPUs</a>.</p>
+<p>Most researchers don&#39;t program for a GPU directly but rather use software (often machine learning software such as Tensorflow or Caffe) that has been programmed to take advantage of a GPU if one is available.</p>
 
 <h3>Spark and Hadoop</h3>
 
@@ -565,9 +565,9 @@ finalize()
 cat pbd-apply.out
 </code></pre>
 
-<pre><code>## [1]  0.03899172 -0.01112569 -0.05990874  0.13107178  0.14787016
-##    min   mean    max 
-##  8.065 12.808 14.534
+<pre><code>## [1]  0.17686351 -0.12216986  0.04345966 -0.06581673  0.07439472
+##      min     mean      max 
+##  7.81000 12.99175 14.74900
 </code></pre>
 
 <p>In this case it&#39;s a fair amount slower to parallelize the calculation than just to do it in R using <em>rowSums()</em>, because of the overhead of communication (including passing the data) with the workers.</p>
@@ -637,10 +637,10 @@ cat mpi.parSapply.out
 ## &gt; # parallel sapply-type calculations on a vector 
 ## &gt; system.time(out &lt;- mpi.parSapply(x, myfun))
 ##    user  system elapsed 
-##   5.704   7.996  13.699 
+##   5.612   8.032  13.644 
 ## &gt; system.time(out &lt;- mpi.applyLB(x, myfun))
 ##    user  system elapsed 
-##   5.488   6.968  12.455 
+##   5.400   7.044  12.441 
 ## &gt; 
 ## &gt; nrows &lt;- 10000
 ## &gt; x &lt;- matrix(rnorm(nrows*50), nrow = nrows)
@@ -1045,9 +1045,9 @@ mpirun -machinefile .hosts -np 4 mpiHello
 ## radagast slots=1
 ## arwen slots=2
 ## Hello from processor 0 of 4 on smeagol
+## Hello from processor 1 of 4 on radagast
 ## Hello from processor 2 of 4 on arwen
 ## Hello from processor 3 of 4 on arwen
-## Hello from processor 1 of 4 on radagast
 </code></pre>
 
 <p>To actually write real MPI code, you&#39;ll need to go learn some of the
@@ -1060,7 +1060,7 @@ and running are as above:</p>
 mpirun -machinefile .hosts -np 4 quad_mpi
 </code></pre>
 
-<pre><code>## 27 September 2017 06:18:01 PM
+<pre><code>## 27 September 2017 06:52:43 PM
 ## 
 ## QUAD_MPI
 ##   C++/MPI version
@@ -1079,13 +1079,13 @@ mpirun -machinefile .hosts -np 4 quad_mpi
 ## 
 ##   Estimate =       0.4993634591634721
 ##   Error = 7.808701535383378e-08
-##   Time = 10.18514704704285
+##   Time = 10.03146505355835
 ##   Process 2 contributed MY_TOTAL = 0.00095491
 ## 
 ## QUAD_MPI:
 ##   Normal end of execution.
 ## 
-## 27 September 2017 06:18:11 PM
+## 27 September 2017 06:52:53 PM
 </code></pre>
 
 <h2>5.3) Using MPI from R via Rmpi or pbdR</h2>
@@ -1184,13 +1184,13 @@ cat Rmpi.out
 ## &gt; mpi.bcast.cmd(y &lt;- 2 * x)
 ## &gt; mpi.remote.exec(print(y))
 ## $slave1
-## [1] 0.7200665
+## [1] -1.358116
 ## 
 ## $slave2
-## [1]  3.307455 -1.294273
+## [1] -0.8357533 -0.3354547
 ## 
 ## $slave3
-## [1]  0.6832478 -1.4699787  1.8408408
+## [1] -2.750742  1.510654 -1.412469
 ## 
 ## &gt; 
 ## &gt; objs &lt;- as.list(c(&#39;x&#39;, &#39;n&#39;))
@@ -1248,13 +1248,13 @@ cat Rmpi.out
 ## &gt;   
 ## &gt; print(results)
 ## [[1]]
-## [1] 0.7200665
+## [1] -1.358116
 ## 
 ## [[2]]
-## [1]  3.307455 -1.294273
+## [1] -0.8357533 -0.3354547
 ## 
 ## [[3]]
-## [1]  0.6832478 -1.4699787  1.8408408
+## [1] -2.750742  1.510654 -1.412469
 ## 
 ## &gt; 
 ## &gt; mpi.close.Rslaves()
@@ -1361,9 +1361,9 @@ if id == 0:
 </code></pre>
 
 <pre><code>## Of  4  workers, I am number  0 .
-## Of  4  workers, I am number  1 .
 ## Of  4  workers, I am number  3 .
 ## Of  4  workers, I am number  2 .
+## Of  4  workers, I am number  1 .
 ## [0.0015121465155362318, 0.00065180430801923422, -0.000977212317921356, 0.001958404534987673]
 </code></pre>
 
