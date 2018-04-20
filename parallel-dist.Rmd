@@ -1,4 +1,4 @@
-Parallel Processing for Distributed Computing  in R, Python, Matlab, and C
+Parallel Processing for Distributed Computing  in R, Python, MATLAB, and C
 ==============================================================
 Parallelization tools in a distributed memory (multiple machine) context
 --------------
@@ -24,7 +24,7 @@ read_chunk('example-mpi.py')
 
 # 0) This Tutorial
 
-This tutorial covers strategies for using parallel processing in R, Python, Matlab (briefly), and C on multiple machines, in which the various processes must interact across a network linking the machines. 
+This tutorial covers strategies for using parallel processing in R, Python, MATLAB (briefly), and C on multiple machines, in which the various processes must interact across a network linking the machines. 
 
 This tutorial assumes you have access to two or more servers on which to parallelize your computation, potentially via a Linux cluster managed via scheduling software such as SLURM, and that MPI, R, and Python are installed on the machines. 
 
@@ -86,10 +86,10 @@ Python has a package *mpi4py* that allows use of MPI within Python.
 
 In both R and Python, there are also easy ways to do embarrassingly parallel calculations (such as simple parallel for loops) across multiple machines, with MPI and similar tools used behind the scenes to manage the worker processes.
 
-Matlab has its own system for distributed computation, called the Distributed Computing Server (DCS), requiring additional licensing above the standard Matlab installation. 
+MATLAB has its own system for distributed computation, called the Distributed Computing Server (DCS), requiring additional licensing above the standard MATLAB installation. 
 
 This tutorial will cover:
- - simple parallelization of embarrassingly parallel computations (in R, Python, and Matlab) without writing code that explicitly uses MPI;
+ - simple parallelization of embarrassingly parallel computations (in R, Python, and MATLAB) without writing code that explicitly uses MPI;
  - distributed linear algebra using the pbdR front-end to the *ScaLapack* package; and
  - using MPI explicitly (in R, Python and C).
 
@@ -180,7 +180,7 @@ Also, I've had inconsistent results in terms of having the correct number of wor
 
 # 3) Basic parallelization across nodes
 
-Here we'll see the use of high-level packages in R, Python, and Matlab that hide the details of communication between nodes. 
+Here we'll see the use of high-level packages in R, Python, and MATLAB that hide the details of communication between nodes. 
 
 ## 3.1) R
 
@@ -400,9 +400,9 @@ done
 ```
 
 
-## 3.3) Matlab
+## 3.3) MATLAB
 
-To use Matlab across multiple nodes, you need to have the Matlab Distributed Computing Server (DCS). If it is installed, one can set up Matlab so that *parfor* will distribute its work across multiple nodes. Details may vary depending on how DCS is installed on your system. 
+To use MATLAB across multiple nodes, you need to have the MATLAB Distributed Computing Server (DCS). If it is installed, one can set up MATLAB so that *parfor* will distribute its work across multiple nodes. Details may vary depending on how DCS is installed on your system. 
 
 # 4) Distributed linear algebra in R using pbdR
 
